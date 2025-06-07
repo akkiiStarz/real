@@ -23,6 +23,8 @@ import {
   getUsers,
   getResaleProperties,
   getRentalProperties,
+  getResalePropertiesByLocations,
+  getRentalPropertiesByLocations,
 } from "../utils/firestoreListings";
 import { generateWhatsAppText } from "../utils/helper";
 import { PropertyCategory } from "../types";
@@ -64,38 +66,91 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+
     const fetchData = async () => {
-      if (!user) return;
       try {
-        const allUsers = await getUsers();
-        const allResale: any[] = [];
-        const allRental: any[] = [];
-        for (const u of allUsers) {
-          const resaleProps = await getResaleProperties(u.id);
-          const rentalProps = await getRentalProperties(u.id);
-          allResale.push(...resaleProps);
-          allRental.push(...rentalProps);
+        const subscriptionLocs = (user.subscriptionLocations || [])
+          .map(loc => loc.name)
+          .filter(Boolean);
+
+        if (subscriptionLocs.includes("all")) {
+          const allUsers = await getUsers();
+          const allResale: any[] = [];
+          const allRental: any[] = [];
+          for (const userItem of allUsers) {
+            const resaleProps = await getResaleProperties(userItem.id);
+            const rentalProps = await getRentalProperties(userItem.id);
+            allResale.push(...resaleProps);
+            allRental.push(...rentalProps);
+          }
+          const approvedResale = allResale.filter((p: any) => p.status === "Approved");
+          const approvedRental = allRental.filter((p: any) => p.status === "Approved");
+          if (isMounted) {
+            setInventory({ resale: approvedResale, rental: approvedRental });
+          }
+          return;
         }
-        const approvedResale = allResale.filter(
-          (p: any) => p.status === "Approved"
-        );
-        const approvedRental = allRental.filter(
-          (p: any) => p.status === "Approved"
-        );
-        console.log(`Approved listings by admin: Resale=${approvedResale.length}, Rental=${approvedRental.length}`);
-        console.log("Approved Resale Listings Data:", approvedResale);
-        console.log("Approved Rental Listings Data:", approvedRental);
-        setInventory({ resale: approvedResale, rental: approvedRental });
-        if (user.city) {
-          loadStationsAndLocalities(user.city);
+
+        if (subscriptionLocs.length > 0) {
+          const resaleProps = await getResalePropertiesByLocations(subscriptionLocs);
+          const rentalProps = await getRentalPropertiesByLocations(subscriptionLocs);
+          
+          // Add user's own properties regardless of location
+          const ownResale = await getResaleProperties(user.id);
+          const ownRental = await getRentalProperties(user.id);
+          
+          // Merge and remove duplicates
+          const mergeProperties = (list: any[], own: any[]) => {
+            const merged = [...list];
+            own.forEach(prop => {
+              if (!merged.some(p => p.id === prop.id)) {
+                merged.push(prop);
+              }
+            });
+            return merged;
+          };
+          
+          const mergedResale = mergeProperties(resaleProps, ownResale);
+          const mergedRental = mergeProperties(rentalProps, ownRental);
+          
+          const approvedResale = mergedResale.filter((p: any) => p.status === "Approved");
+          const approvedRental = mergedRental.filter((p: any) => p.status === "Approved");
+          
+          if (isMounted) {
+            setInventory({ resale: approvedResale, rental: approvedRental });
+          }
+          return;
         }
-        loadBanners();
+
+        if (isMounted) {
+          setInventory({ resale: [], rental: [] });
+        }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
     };
+
+    const loadBanners = async () => {
+      try {
+        const locations = user.isAdmin
+          ? []
+          : (user.subscriptionLocations || []).map((loc) => loc.name);
+        if (!user.isAdmin && locations.length === 0) return;
+        const data = await fetchBanners(locations);
+        if (isMounted) setBanners(data);
+      } catch (error) {
+        console.error("Error fetching banners:", error);
+      }
+    };
+
     fetchData();
-    // eslint-disable-next-line
+    loadBanners();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const loadStationsAndLocalities = async (city: string) => {
@@ -104,16 +159,6 @@ const Dashboard = () => {
     setStations(stationData);
     const localitiesData = await fetchLocalitiesByCity(city);
     setLocalities(localitiesData);
-  };
-
-  const loadBanners = async () => {
-    if (!user) return;
-    const locations = user.isAdmin
-      ? []
-      : (user.subscriptionLocations || []).map((loc) => loc.name);
-    if (!user.isAdmin && locations.length === 0) return;
-    const data = await fetchBanners(locations);
-    setBanners(data);
   };
 
   const handleFilterChange = (name: string, value: any) => {
@@ -130,24 +175,23 @@ const Dashboard = () => {
     if (!user) return;
     const properties =
       propertyCategory === "Rental" ? inventory.rental : inventory.resale;
-    const filtered = properties.filter((property: any) => {
-      // Subscription location filter
-      if (!ignoreSubscriptionFilter) {
-        const hasSubscriptionForLocation = (
-          user.subscriptionLocations || []
-        ).some((loc) => {
-          const subLoc = loc.name.trim().toLowerCase();
-          const propLoc = (property.roadLocation || "").trim().toLowerCase();
-          return propLoc.includes(subLoc);
-        });
-        if (
-          !hasSubscriptionForLocation &&
-          property.userId !== user.id &&
-          !user.isAdmin
-        ) {
-          return false;
+      const filtered = properties.filter((property: any) => {
+        // Subscription location filter
+        if (!ignoreSubscriptionFilter && !user.isAdmin) {
+          const hasSubscriptionForLocation = (
+            user.subscriptionLocations || []
+          ).some((loc) => {
+            // Compare subscription location name with property roadLocation
+            return loc.name === property.roadLocation;
+          });
+          
+          // Always show user's own properties
+          const isOwnProperty = property.userId === user.id;
+          
+          if (!hasSubscriptionForLocation && !isOwnProperty) {
+            return false;
+          }
         }
-      }
       // BHK filter
       if (currentFilters.bhkType && property.type !== currentFilters.bhkType) {
         return false;
@@ -684,9 +728,9 @@ const Dashboard = () => {
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.floorNo || "N/A"}
                                   </td>
-                                  {/* Show flatNo only if user has subscription for location */}
+                                  {/* Show flatNo only if user has subscription for location or it's their own property */}
                               <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                {(user.isAdmin || property.userId === user.id)
+                                {(user.isAdmin || property.userId === user.id || hasSubForLocation)
                                   ? property.flatNo || "N/A"
                                   : "Hidden"}
                               </td>
@@ -721,9 +765,9 @@ const Dashboard = () => {
                                       ? property.deposit.toLocaleString("en-IN")
                                       : "N/A"}
                                   </td>
-                                  {/* Show flatNo only if user has subscription for location */}
+                                  {/* Show flatNo only if user has subscription for location or it's their own property */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {hasSubForLocation
+                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
                                       ? property.flatNo || "N/A"
                                       : "Hidden"}
                                   </td>

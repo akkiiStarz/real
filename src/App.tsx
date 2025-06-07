@@ -61,13 +61,18 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
 };
 
 function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth(); // <-- use loading state
   const location = useLocation();
 
   // Scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  // Wait for auth state to resolve before rendering routes
+  if (loading) {
+    return <div>Loading...</div>; // Or your custom loading spinner
+  }
 
   return (
     <Suspense fallback={<Loading />}>

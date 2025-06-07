@@ -31,6 +31,7 @@ const Admin = () => {
       try {
         setLoading(true);
         const allUsers = await getUsers();
+        console.log("Admin fetched users count:", allUsers.length);
         const mappedUsers: User[] = allUsers.map((user: any) => ({
           id: user.id,
           fullName: user.fullName,
@@ -51,10 +52,14 @@ const Admin = () => {
 
         for (const user of mappedUsers) {
           const resaleProps = await getResaleProperties(user.id);
+          console.log(`User ${user.id} resale properties count:`, resaleProps.length);
           const rentalProps = await getRentalProperties(user.id);
+          console.log(`User ${user.id} rental properties count:`, rentalProps.length);
           allResale.push(...resaleProps);
           allRental.push(...rentalProps);
         }
+        console.log("Admin fetched total resale properties:", allResale.length);
+        console.log("Admin fetched total rental properties:", allRental.length);
 
         setInventory({ resale: allResale, rental: allRental });
       } catch (error) {
@@ -196,11 +201,9 @@ const Admin = () => {
                             <h4 className="font-medium text-neutral-700 mb-2">
                               Resale Properties
                             </h4>
-                            {inventory.resale.filter(
-                              (p: any) => p.status === "Pending Approval"
-                            ).length === 0 ? (
+                            {inventory.resale.length === 0 ? (
                               <p className="text-neutral-500 italic mb-6">
-                                No pending resale properties
+                                No resale properties
                               </p>
                             ) : (
                               <div className="mb-6 overflow-x-auto">
@@ -228,86 +231,77 @@ const Admin = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.resale
-                                      .filter(
-                                        (property: any) =>
-                                          property.status === "Pending Approval"
-                                      )
-                                      .map((property: any) => (
-                                        <tr
-                                          key={property.id}
-                                          className="hover:bg-neutral-50"
-                                        >
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
-                                            {format(
-                                              new Date(property.createdAt),
-                                              "dd/MM/yyyy"
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.type}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.society}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.roadLocation}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
-                                            ₹
-                                            {property.expectedPrice.toLocaleString(
-                                              "en-IN"
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            <div className="flex space-x-2">
-                                              <Button
-                                                variant="text"
-                                                size="sm"
-                                                icon={
-                                                  <Eye className="h-4 w-4" />
-                                                }
-                                                onClick={() =>
-                                                  setShowPropertyDetails({
-                                                    ...property,
-                                                    category: "resale",
-                                                  })
-                                                }
-                                              >
-                                                View
-                                              </Button>
-                                              <Button
-                                                variant="primary"
-                                                size="sm"
-                                                icon={
-                                                  <Check className="h-4 w-4" />
-                                                }
-                                                onClick={() =>
-                                                  handleApproveProperty(
-                                                    property.id,
-                                                    "resale"
-                                                  )
-                                                }
-                                              >
-                                                Approve
-                                              </Button>
-                                              <Button
-                                                variant="danger"
-                                                size="sm"
-                                                icon={<X className="h-4 w-4" />}
-                                                onClick={() =>
-                                                  handleRejectProperty(
-                                                    property.id,
-                                                    "resale"
-                                                  )
-                                                }
-                                              >
-                                                Reject
-                                              </Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
+                                    {inventory.resale.map((property: any) => (
+                                      <tr
+                                        key={property.id}
+                                        className="hover:bg-neutral-50"
+                                      >
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
+                                          {format(
+                                            new Date(property.createdAt),
+                                            "dd/MM/yyyy"
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.type}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.society}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.roadLocation}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
+                                          ₹
+                                          {property.expectedPrice.toLocaleString(
+                                            "en-IN"
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          <div className="flex space-x-2">
+                                            <Button
+                                              variant="text"
+                                              size="sm"
+                                              icon={<Eye className="h-4 w-4" />}
+                                              onClick={() =>
+                                                setShowPropertyDetails({
+                                                  ...property,
+                                                  category: "resale",
+                                                })
+                                              }
+                                            >
+                                              View
+                                            </Button>
+                                            <Button
+                                              variant="primary"
+                                              size="sm"
+                                              icon={<Check className="h-4 w-4" />}
+                                              onClick={() =>
+                                                handleApproveProperty(
+                                                  property.id,
+                                                  "resale"
+                                                )
+                                              }
+                                            >
+                                              Approve
+                                            </Button>
+                                            <Button
+                                              variant="danger"
+                                              size="sm"
+                                              icon={<X className="h-4 w-4" />}
+                                              onClick={() =>
+                                                handleRejectProperty(
+                                                  property.id,
+                                                  "resale"
+                                                )
+                                              }
+                                            >
+                                              Reject
+                                            </Button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
                                   </tbody>
                                 </table>
                               </div>
@@ -317,11 +311,9 @@ const Admin = () => {
                             <h4 className="font-medium text-neutral-700 mb-2">
                               Rental Properties
                             </h4>
-                            {inventory.rental.filter(
-                              (p: any) => p.status === "Pending Approval"
-                            ).length === 0 ? (
+                            {inventory.rental.length === 0 ? (
                               <p className="text-neutral-500 italic">
-                                No pending rental properties
+                                No rental properties
                               </p>
                             ) : (
                               <div className="overflow-x-auto">
@@ -349,86 +341,75 @@ const Admin = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.rental
-                                      .filter(
-                                        (property: any) =>
-                                          property.status === "Pending Approval"
-                                      )
-                                      .map((property: any) => (
-                                        <tr
-                                          key={property.id}
-                                          className="hover:bg-neutral-50"
-                                        >
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
-                                            {format(
-                                              new Date(property.createdAt),
-                                              "dd/MM/yyyy"
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.type}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.society}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            {property.roadLocation}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
-                                            ₹
-                                            {property.rent.toLocaleString(
-                                              "en-IN"
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
-                                            <div className="flex space-x-2">
-                                              <Button
-                                                variant="text"
-                                                size="sm"
-                                                icon={
-                                                  <Eye className="h-4 w-4" />
-                                                }
-                                                onClick={() =>
-                                                  setShowPropertyDetails({
-                                                    ...property,
-                                                    category: "rental",
-                                                  })
-                                                }
-                                              >
-                                                View
-                                              </Button>
-                                              <Button
-                                                variant="primary"
-                                                size="sm"
-                                                icon={
-                                                  <Check className="h-4 w-4" />
-                                                }
-                                                onClick={() =>
-                                                  handleApproveProperty(
-                                                    property.id,
-                                                    "rental"
-                                                  )
-                                                }
-                                              >
-                                                Approve
-                                              </Button>
-                                              <Button
-                                                variant="danger"
-                                                size="sm"
-                                                icon={<X className="h-4 w-4" />}
-                                                onClick={() =>
-                                                  handleRejectProperty(
-                                                    property.id,
-                                                    "rental"
-                                                  )
-                                                }
-                                              >
-                                                Reject
-                                              </Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
+                                    {inventory.rental.map((property: any) => (
+                                      <tr
+                                        key={property.id}
+                                        className="hover:bg-neutral-50"
+                                      >
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
+                                          {format(
+                                            new Date(property.createdAt),
+                                            "dd/MM/yyyy"
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.type}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.society}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          {property.roadLocation}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
+                                          ₹
+                                          {property.rent.toLocaleString("en-IN")}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
+                                          <div className="flex space-x-2">
+                                            <Button
+                                              variant="text"
+                                              size="sm"
+                                              icon={<Eye className="h-4 w-4" />}
+                                              onClick={() =>
+                                                setShowPropertyDetails({
+                                                  ...property,
+                                                  category: "rental",
+                                                })
+                                              }
+                                            >
+                                              View
+                                            </Button>
+                                            <Button
+                                              variant="primary"
+                                              size="sm"
+                                              icon={<Check className="h-4 w-4" />}
+                                              onClick={() =>
+                                                handleApproveProperty(
+                                                  property.id,
+                                                  "rental"
+                                                )
+                                              }
+                                            >
+                                              Approve
+                                            </Button>
+                                            <Button
+                                              variant="danger"
+                                              size="sm"
+                                              icon={<X className="h-4 w-4" />}
+                                              onClick={() =>
+                                                handleRejectProperty(
+                                                  property.id,
+                                                  "rental"
+                                                )
+                                              }
+                                            >
+                                              Reject
+                                            </Button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
                                   </tbody>
                                 </table>
                               </div>

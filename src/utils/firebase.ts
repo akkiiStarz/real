@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
 
@@ -23,20 +23,7 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
 
-/* Disable offline persistence to avoid multiple tabs and IndexedDB version issues */
-// Commenting out persistence enablement to prevent errors
-/*
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled in one tab at a time.
-    console.warn('Firestore persistence failed: Multiple tabs open');
-  } else if (err.code === 'unimplemented') {
-    // The browser does not support all features required to enable persistence
-    console.warn('Firestore persistence is not available in this browser');
-  } else {
-    console.error('Error enabling Firestore persistence:', err);
-  }
-});
-*/
+// Ensure persistent login
+setPersistence(auth, browserLocalPersistence);
 
 export default app;

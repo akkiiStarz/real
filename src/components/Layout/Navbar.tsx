@@ -6,7 +6,7 @@ import Button from '../ui/Button';
 import logo from '../../assets/logo.png';
 
 const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -22,6 +22,11 @@ const Navbar: React.FC = () => {
   };
 
   const isInventoryPage = location.pathname === '/inventory';
+
+  if (loading) {
+    // While loading auth state, render nothing or a placeholder to avoid flash
+    return null;
+  }
 
   return (
     <header className="bg-white text-black shadow-md">

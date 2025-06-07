@@ -68,3 +68,57 @@ export const getRentalProperties = async (userId: string): Promise<any[]> => {
   });
   return properties;
 };
+
+export const getResalePropertiesByLocations = async (locations: string[]): Promise<any[]> => {
+  const usersCollection = collection(db, "users");
+  const usersSnapshot = await getDocs(usersCollection);
+  const results: any[] = [];
+
+  for (const userDoc of usersSnapshot.docs) {
+    const userId = userDoc.id;
+    const resaleCollection = collection(db, "users", userId, "resaleProperties");
+    
+    // Create OR query for all locations
+    const queries = locations.map(location => 
+      where("roadLocation", "==", location)
+    );
+    
+    // Chunk queries to avoid Firestore's 10-limit per OR query
+    for (let i = 0; i < queries.length; i += 10) {
+      const chunk = queries.slice(i, i + 10);
+      const q = query(resaleCollection, ...chunk);
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        results.push({ id: doc.id, ...doc.data() });
+      });
+    }
+  }
+  return results;
+};
+
+export const getRentalPropertiesByLocations = async (locations: string[]): Promise<any[]> => {
+  const usersCollection = collection(db, "users");
+  const usersSnapshot = await getDocs(usersCollection);
+  const results: any[] = [];
+
+  for (const userDoc of usersSnapshot.docs) {
+    const userId = userDoc.id;
+    const rentalCollection = collection(db, "users", userId, "rentalProperties");
+    
+    // Create OR query for all locations
+    const queries = locations.map(location => 
+      where("roadLocation", "==", location)
+    );
+    
+    // Chunk queries to avoid Firestore's 10-limit
+    for (let i = 0; i < queries.length; i += 10) {
+      const chunk = queries.slice(i, i + 10);
+      const q = query(rentalCollection, ...chunk);
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        results.push({ id: doc.id, ...doc.data() });
+      });
+    }
+  }
+  return results;
+};
