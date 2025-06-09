@@ -14,6 +14,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
+import Tabs from "../components/ui/Tabs"; // Adjust import path if needed
 import {
   fetchStationsByCity,
   fetchLocalitiesByCity,
@@ -394,6 +395,54 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Chrome-style Tabs just below heading */}
+        <div className="mb-4">
+          <Tabs
+            variant="chrome"
+            tabs={[
+              { id: "residential", label: "Residential", content: null },
+              { id: "commercial", label: "Commercial", content: null, disabled: true },
+              { id: "shops", label: "Shops", content: null, disabled: true },
+              { id: "bungalow", label: "Bungalow", content: null, disabled: true },
+              { id: "rawhouse", label: "Raw House", content: null, disabled: true },
+              { id: "villa", label: "Villa", content: null, disabled: true },
+              { id: "penthouse", label: "Pent House", content: null, disabled: true },
+              { id: "plot", label: "Plot", content: null, disabled: true },
+            ]}
+            defaultTab="residential"
+            className="mb-2"
+          />
+        </div>
+
+        {/* Property Category toggle just below Tabs */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Property Category
+          </label>
+          <div className="flex border border-neutral-300 rounded-md overflow-hidden w-full max-w-xs">
+            <button
+              className={`flex-1 py-2 ${
+                propertyCategory === "Resale"
+                  ? "bg-primary text-white"
+                  : "bg-white text-neutral-700"
+              }`}
+              onClick={() => setPropertyCategory("Resale")}
+            >
+              Resale
+            </button>
+            <button
+              className={`flex-1 py-2 ${
+                propertyCategory === "Rental"
+                  ? "bg-primary text-white"
+                  : "bg-white text-neutral-700"
+              }`}
+              onClick={() => setPropertyCategory("Rental")}
+            >
+              Rental
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar Filters */}
           <div className={`lg:block ${showFilters ? "block" : "hidden"}`}>
@@ -405,33 +454,7 @@ const Dashboard = () => {
                 </Button>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">
-                    Property Category
-                  </label>
-                  <div className="flex border border-neutral-300 rounded-md overflow-hidden">
-                    <button
-                      className={`flex-1 py-2 ${
-                        propertyCategory === "Resale"
-                          ? "bg-primary text-white"
-                          : "bg-white text-neutral-700"
-                      }`}
-                      onClick={() => setPropertyCategory("Resale")}
-                    >
-                      Resale
-                    </button>
-                    <button
-                      className={`flex-1 py-2 ${
-                        propertyCategory === "Rental"
-                          ? "bg-primary text-white"
-                          : "bg-white text-neutral-700"
-                      }`}
-                      onClick={() => setPropertyCategory("Rental")}
-                    >
-                      Rental
-                    </button>
-                  </div>
-                </div>
+                {/* Remove Property Category toggle from here */}
                 <Select
                   id="bhkType"
                   label="BHK Type"

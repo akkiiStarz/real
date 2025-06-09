@@ -261,7 +261,6 @@ const handleMapClick = (e: google.maps.MapMouseEvent) => {
                       message: 'Password must contain letters, numbers, and special characters'
                     }
                   })}
-                  // Removed lock icon as per user request
                 />
                   <button
                     type="button"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Building, Mail, Lock, EyeOff, Eye } from 'lucide-react';
+import { Building, Mail, EyeOff, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import Input from '../components/ui/Input';
@@ -97,7 +97,6 @@ const Login = () => {
                     message: 'Password must be at least 6 characters'
                   }
                 })}
-                icon={<Lock className="h-5 w-5 text-neutral-400" />}
               />
               <button
                 type="button"
