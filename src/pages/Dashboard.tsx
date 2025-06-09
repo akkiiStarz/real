@@ -40,6 +40,39 @@ const bhkOptions = [
   { value: "5 BHK", label: "5 BHK" },
 ];
 
+const fetchAndLogSubscribedListings = async (user) => {
+  if (!user || !user.subscriptionLocations) {
+    console.log("No user or no subscriptions");
+    return;
+  }
+
+  // Normalize subscription locations
+  const subscriptionLocs = user.subscriptionLocations
+    .map((loc) => loc.name.trim().toLowerCase())
+    .filter(Boolean);
+
+  // Fetch all users
+  const allUsers = await getUsers();
+  let allResale = [];
+
+  // Fetch all resale properties for all users
+  for (const u of allUsers) {
+    const resale = await getResaleProperties(u.id);
+    allResale = allResale.concat(resale);
+  }
+
+  // Filter by approved and matching location
+  const matchingResale = allResale.filter(
+    (p) =>
+      p.status === "Approved" &&
+      subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
+  );
+
+  console.log("User subscription locations:", subscriptionLocs);
+  console.log("All resale property locations:", allResale.map((p) => p.roadLocation));
+  console.log("Matching resale listings:", matchingResale);
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [propertyCategory, setPropertyCategory] =
@@ -65,68 +98,44 @@ const Dashboard = () => {
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
 
+  // Fetch and filter listings based on subscription locations
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
 
     const fetchData = async () => {
       try {
+        // Normalize subscription locations
         const subscriptionLocs = (user.subscriptionLocations || [])
-          .map(loc => loc.name)
+          .map(loc => loc.name.trim().toLowerCase())
           .filter(Boolean);
 
-        if (subscriptionLocs.includes("all")) {
-          const allUsers = await getUsers();
-          const allResale: any[] = [];
-          const allRental: any[] = [];
-          for (const userItem of allUsers) {
-            const resaleProps = await getResaleProperties(userItem.id);
-            const rentalProps = await getRentalProperties(userItem.id);
-            allResale.push(...resaleProps);
-            allRental.push(...rentalProps);
-          }
-          const approvedResale = allResale.filter((p: any) => p.status === "Approved");
-          const approvedRental = allRental.filter((p: any) => p.status === "Approved");
-          if (isMounted) {
-            setInventory({ resale: approvedResale, rental: approvedRental });
-          }
-          return;
+        // Fetch all users and their resale properties
+        const allUsers = await getUsers();
+        let allResale: ResaleProperty[] = [];
+        for (const u of allUsers) {
+          const resale: ResaleProperty[] = await getResaleProperties(u.id);
+          allResale = allResale.concat(resale);
         }
 
-        if (subscriptionLocs.length > 0) {
-          const resaleProps = await getResalePropertiesByLocations(subscriptionLocs);
-          const rentalProps = await getRentalPropertiesByLocations(subscriptionLocs);
-          
-          // Add user's own properties regardless of location
-          const ownResale = await getResaleProperties(user.id);
-          const ownRental = await getRentalProperties(user.id);
-          
-          // Merge and remove duplicates
-          const mergeProperties = (list: any[], own: any[]) => {
-            const merged = [...list];
-            own.forEach(prop => {
-              if (!merged.some(p => p.id === prop.id)) {
-                merged.push(prop);
-              }
-            });
-            return merged;
-          };
-          
-          const mergedResale = mergeProperties(resaleProps, ownResale);
-          const mergedRental = mergeProperties(rentalProps, ownRental);
-          
-          const approvedResale = mergedResale.filter((p: any) => p.status === "Approved");
-          const approvedRental = mergedRental.filter((p: any) => p.status === "Approved");
-          
-          if (isMounted) {
-            setInventory({ resale: approvedResale, rental: approvedRental });
-          }
-          return;
-        }
+        // Filter by approved and matching location
+        const matchingResale: ResaleProperty[] = allResale.filter(
+          (p: ResaleProperty) =>
+            p.status === "Approved" &&
+            subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
+        );
 
+        // Set inventory and filteredProperties so it shows in the table
         if (isMounted) {
-          setInventory({ resale: [], rental: [] });
+          setInventory({ resale: matchingResale, rental: [] }); // Only resale for now
+          setFilteredProperties(matchingResale);
+          setHasFiltered(true);
         }
+
+        // Debug logs
+        console.log("User subscription locations:", subscriptionLocs);
+        console.log("All resale property locations:", allResale.map((p) => p.roadLocation));
+        console.log("Matching resale listings:", matchingResale);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
@@ -153,6 +162,12 @@ const Dashboard = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (user) {
+      fetchAndLogSubscribedListings(user);
+    }
+  }, [user]);
+
   const loadStationsAndLocalities = async (city: string) => {
     if (!city) return;
     const stationData = await fetchStationsByCity(city);
@@ -175,23 +190,26 @@ const Dashboard = () => {
     if (!user) return;
     const properties =
       propertyCategory === "Rental" ? inventory.rental : inventory.resale;
-      const filtered = properties.filter((property: any) => {
-        // Subscription location filter
-        if (!ignoreSubscriptionFilter && !user.isAdmin) {
-          const hasSubscriptionForLocation = (
-            user.subscriptionLocations || []
-          ).some((loc) => {
-            // Compare subscription location name with property roadLocation
-            return loc.name === property.roadLocation;
-          });
-          
-          // Always show user's own properties
-          const isOwnProperty = property.userId === user.id;
-          
-          if (!hasSubscriptionForLocation && !isOwnProperty) {
-            return false;
-          }
+    const filtered = properties.filter((property: any) => {
+      // Subscription location filter
+      if (!ignoreSubscriptionFilter && !user.isAdmin) {
+        const hasSubscriptionForLocation = (
+          user.subscriptionLocations || []
+        ).some((loc) => {
+          // Compare normalized subscription location name with property roadLocation
+          return (
+            loc.name.trim().toLowerCase() ===
+            (property.roadLocation || "").trim().toLowerCase()
+          );
+        });
+
+        // Always show user's own properties
+        const isOwnProperty = property.userId === user.id;
+
+        if (!hasSubscriptionForLocation && !isOwnProperty) {
+          return false;
         }
+      }
       // BHK filter
       if (currentFilters.bhkType && property.type !== currentFilters.bhkType) {
         return false;
@@ -241,10 +259,11 @@ const Dashboard = () => {
           return false;
         }
       }
-      // Sub-location filter
+      // Sub-location filter (normalize for comparison)
       if (
         currentFilters.subLocation &&
-        property.roadLocation !== currentFilters.subLocation
+        (property.roadLocation || "").trim().toLowerCase() !==
+          currentFilters.subLocation.trim().toLowerCase()
       ) {
         return false;
       }
@@ -268,9 +287,8 @@ const Dashboard = () => {
       setHasFiltered(false);
       return;
     }
-    // Do NOT call applyFilters here!
-    setHasFiltered(false);
-    setFilteredProperties([]);
+    // Automatically apply filters when subscriptionLocations or inventory changes
+    applyFilters(false);
     // eslint-disable-next-line
   }, [user?.subscriptionLocations, propertyCategory, inventory]);
 
@@ -586,7 +604,7 @@ const Dashboard = () => {
                 {/* Properties Table */}
                 <Card>
                   <div className="overflow-x-auto max-w-full">
-                <table className="min-w-full divide-y divide-neutral-200 table-auto" style={{ tableLayout: 'auto', transition: 'all 0.3s ease' }}>
+                    <table className="min-w-full divide-y divide-neutral-200 table-auto" style={{ tableLayout: 'auto', transition: 'all 0.3s ease' }}>
                       <thead>
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -729,11 +747,11 @@ const Dashboard = () => {
                                     {property.floorNo || "N/A"}
                                   </td>
                                   {/* Show flatNo only if user has subscription for location or it's their own property */}
-                              <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                {(user.isAdmin || property.userId === user.id || hasSubForLocation)
-                                  ? property.flatNo || "N/A"
-                                  : "Hidden"}
-                              </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
+                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
+                                      ? property.flatNo || "N/A"
+                                      : "Hidden"}
+                                  </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
                                   </td>

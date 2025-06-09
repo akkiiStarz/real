@@ -73,95 +73,101 @@ const Admin = () => {
     fetchData();
   }, [user]);
 
-  const handleApproveProperty = async (
-    id: string,
-    category: "resale" | "rental"
-  ) => {
-    try {
-      setActionLoading(true);
-      const property = inventory[category].find((p: any) => p.id === id);
-      if (!property) {
-        toast.error("Property not found");
-        setActionLoading(false);
-        return;
-      }
-      // Check admin role before approving
-      if (!user?.isAdmin) {
-        toast.error("You do not have permission to approve properties.");
-        setActionLoading(false);
-        return;
-      }
-      await updatePropertyStatus(property.userId, category, id, "Approved", true);
-
-      setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
-        const updatedProperties = (prevInventory[category] || []).map(
-          (property: any) => {
-            if (property.id === id) {
-              return { ...property, status: "Approved", isApproved: true };
-            }
-            return property;
-          }
-        );
-
-        return {
-          ...prevInventory,
-          [category]: updatedProperties,
-        };
-      });
-
-      toast.success("Property approved successfully");
-    } catch (error) {
-      console.error("Error approving property:", error);
-      toast.error("Failed to approve property");
-    } finally {
+const handleApproveProperty = async (
+  id: string,
+  category: "resale" | "rental"
+) => {
+  try {
+    console.log(`Starting approval for property id: ${id}, category: ${category}`);
+    setActionLoading(true);
+    const property = inventory[category].find((p: any) => p.id === id);
+    if (!property) {
+      console.error("Property not found for approval");
+      toast.error("Property not found");
       setActionLoading(false);
+      return;
     }
-  };
-
-  const handleRejectProperty = async (
-    id: string,
-    category: "resale" | "rental"
-  ) => {
-    try {
-      setActionLoading(true);
-      const property = inventory[category].find((p: any) => p.id === id);
-      if (!property) {
-        toast.error("Property not found");
-        setActionLoading(false);
-        return;
-      }
-      // Check admin role before rejecting
-      if (!user?.isAdmin) {
-        toast.error("You do not have permission to reject properties.");
-        setActionLoading(false);
-        return;
-      }
-      await updatePropertyStatus(property.userId, category, id, "Rejected", false);
-
-      setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
-        const updatedProperties = (prevInventory[category] || []).map(
-          (property: any) => {
-            if (property.id === id) {
-              return { ...property, status: "Rejected", isApproved: false };
-            }
-            return property;
-          }
-        );
-
-        return {
-          ...prevInventory,
-          [category]: updatedProperties,
-        };
-      });
-
-      toast.success("Property rejected");
-    } catch (error) {
-      console.error("Error rejecting property:", error);
-      toast.error("Failed to reject property");
-    } finally {
+    // Check admin role before approving
+    if (!user?.isAdmin) {
+      console.error("User does not have permission to approve properties");
+      toast.error("You do not have permission to approve properties.");
       setActionLoading(false);
+      return;
     }
-  };
+    await updatePropertyStatus(property.userId, category, id, "Approved", true);
+    console.log(`Backend updated for property id: ${id}`);
+
+    setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
+      const updatedProperties = (prevInventory[category] || []).map(
+        (property: any) => {
+          if (property.id === id) {
+            console.log(`Updating UI state for property id: ${id}`);
+            return { ...property, status: "Approved", isApproved: true };
+          }
+          return property;
+        }
+      );
+
+      return {
+        ...prevInventory,
+        [category]: updatedProperties,
+      };
+    });
+
+    toast.success("Property approved successfully");
+    console.log(`Approval process completed for property id: ${id}`);
+  } catch (error) {
+    console.error("Error approving property:", error);
+    toast.error("Failed to approve property");
+  } finally {
+    setActionLoading(false);
+  }
+};
+
+const handleRejectProperty = async (
+  id: string,
+  category: "resale" | "rental"
+) => {
+  try {
+    setActionLoading(true);
+    const property = inventory[category].find((p: any) => p.id === id);
+    if (!property) {
+      toast.error("Property not found");
+      setActionLoading(false);
+      return;
+    }
+    // Check admin role before rejecting
+    if (!user?.isAdmin) {
+      toast.error("You do not have permission to reject properties.");
+      setActionLoading(false);
+      return;
+    }
+    await updatePropertyStatus(property.userId, category, id, "Rejected", false);
+
+    setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
+      const updatedProperties = (prevInventory[category] || []).map(
+        (property: any) => {
+          if (property.id === id) {
+            return { ...property, status: "Rejected", isApproved: false };
+          }
+          return property;
+        }
+      );
+
+      return {
+        ...prevInventory,
+        [category]: updatedProperties,
+      };
+    });
+
+    toast.success("Property rejected");
+  } catch (error) {
+    console.error("Error rejecting property:", error);
+    toast.error("Failed to reject property");
+  } finally {
+    setActionLoading(false);
+  }
+};
 
   const viewUserDetails = (user: User) => {
     setUserDetails(user);
@@ -201,7 +207,7 @@ const Admin = () => {
                             <h4 className="font-medium text-neutral-700 mb-2">
                               Resale Properties
                             </h4>
-                            {inventory.resale.length === 0 ? (
+                            {inventory.resale.filter(p => p.status === "Pending Approval").length === 0 ? (
                               <p className="text-neutral-500 italic mb-6">
                                 No resale properties
                               </p>
@@ -231,7 +237,7 @@ const Admin = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.resale.map((property: any) => (
+                                    {inventory.resale.filter(p => p.status === "Pending Approval").map((property: any) => (
                                       <tr
                                         key={property.id}
                                         className="hover:bg-neutral-50"

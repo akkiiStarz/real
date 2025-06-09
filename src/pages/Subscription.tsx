@@ -4,9 +4,9 @@ import { Building, Check, ArrowRight } from "lucide-react";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import { useAuth } from "../utils/authContext";
-import { SubscriptionLocation } from "../types";
 import { formatCurrency } from "../utils/helper";
 import toast from "react-hot-toast";
+
 interface LocationOption {
   id: string;
   name: string;
@@ -17,14 +17,13 @@ interface LocationOption {
 const initialLocations: LocationOption[] = [
   { id: "1", name: "Mumbai", price: 1500, isSelected: false },
   { id: "2", name: "Thane", price: 1000, isSelected: false },
-  { id: "3", name: "Mira Road", price: 800, isSelected: false },
+  { id: "3", name: "Mira road", price: 800, isSelected: false },
   { id: "4", name: "Dahisar", price: 800, isSelected: false },
   { id: "5", name: "Bhayandar", price: 800, isSelected: false },
   { id: "6", name: "Delhi", price: 1500, isSelected: false },
   { id: "7", name: "Bangalore", price: 1200, isSelected: false },
   { id: "8", name: "Pune", price: 1000, isSelected: false },
 ];
-
 
 const Subscription = () => {
   const navigate = useNavigate();
@@ -72,40 +71,7 @@ const Subscription = () => {
     return locations.some((loc) => loc.id === id && loc.isSelected);
   };
 
-  const handleSaveSubscription = async () => {
-    if (!user) return;
 
-    const subscriptionLocations: SubscriptionLocation[] = locations
-      .filter((loc) => loc.isSelected)
-      .map((loc) => ({
-        id: loc.id,
-        name: loc.name,
-        price: loc.price,
-      }));
-
-    if (subscriptionLocations.length === 0) {
-      toast.error("Please select at least one location to subscribe.");
-      return;
-    }
-
-    try {
-      await updateUserData({ ...user, subscriptionLocations });
-      toast.success("Subscription updated successfully!");
-      // Optionally refresh user data here if needed
-    } catch (error) {
-      toast.error("Failed to update subscription");
-      console.error("Subscription update error:", error);
-    }
-  };
-
-  const handleProceedToCheckout = () => {
-    const selected = locations.filter((loc) => loc.isSelected);
-    if (selected.length === 0) {
-      toast.error("Please select at least one location");
-      return;
-    }
-    navigate("/subscription/checkout");
-  };
 
   const handleSkip = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -122,6 +88,7 @@ const Subscription = () => {
       console.error(error);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-neutral-50 py-12 px-4">
@@ -248,7 +215,7 @@ const Subscription = () => {
           </Button>
           <Button
             variant="primary"
-          onClick={async () => {
+            onClick={async () => {
               if (!user) {
                 toast.error("No authenticated user");
                 return;
@@ -257,7 +224,7 @@ const Subscription = () => {
                 .filter((loc) => loc.isSelected)
                 .map((loc) => ({
                   id: loc.id,
-                  name: loc.name,
+                  name: loc.name.toLowerCase().trim(),
                   price: loc.price,
                 }));
 
@@ -269,6 +236,14 @@ const Subscription = () => {
               try {
                 await updateUserData({ ...user, subscriptionLocations });
                 toast.success("Subscription updated successfully!");
+                // Refresh locations state to reflect updated subscription immediately
+                const updatedLocations = locations.map((loc) => ({
+                  ...loc,
+                  isSelected: subscriptionLocations.some(
+                    (sub) => sub.name === loc.name
+                  ),
+                }));
+                setLocations(updatedLocations);
                 navigate("/subscription/checkout");
               } catch (error) {
                 toast.error("Failed to update subscription");

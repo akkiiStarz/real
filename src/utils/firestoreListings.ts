@@ -74,19 +74,23 @@ export const getResalePropertiesByLocations = async (locations: string[]): Promi
   const usersSnapshot = await getDocs(usersCollection);
   const results: any[] = [];
 
+  // Chunk locations into groups of 10 for Firestore "in" query limit
+  const chunkArray = (arr: string[], size: number) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  const locationChunks = chunkArray(locations, 10);
+
   for (const userDoc of usersSnapshot.docs) {
     const userId = userDoc.id;
     const resaleCollection = collection(db, "users", userId, "resaleProperties");
-    
-    // Create OR query for all locations
-    const queries = locations.map(location => 
-      where("roadLocation", "==", location)
-    );
-    
-    // Chunk queries to avoid Firestore's 10-limit per OR query
-    for (let i = 0; i < queries.length; i += 10) {
-      const chunk = queries.slice(i, i + 10);
-      const q = query(resaleCollection, ...chunk);
+
+    for (const chunk of locationChunks) {
+      const q = query(resaleCollection, where("roadLocation", "in", chunk));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         results.push({ id: doc.id, ...doc.data() });
@@ -101,19 +105,23 @@ export const getRentalPropertiesByLocations = async (locations: string[]): Promi
   const usersSnapshot = await getDocs(usersCollection);
   const results: any[] = [];
 
+  // Chunk locations into groups of 10 for Firestore "in" query limit
+  const chunkArray = (arr: string[], size: number) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  const locationChunks = chunkArray(locations, 10);
+
   for (const userDoc of usersSnapshot.docs) {
     const userId = userDoc.id;
     const rentalCollection = collection(db, "users", userId, "rentalProperties");
-    
-    // Create OR query for all locations
-    const queries = locations.map(location => 
-      where("roadLocation", "==", location)
-    );
-    
-    // Chunk queries to avoid Firestore's 10-limit
-    for (let i = 0; i < queries.length; i += 10) {
-      const chunk = queries.slice(i, i + 10);
-      const q = query(rentalCollection, ...chunk);
+
+    for (const chunk of locationChunks) {
+      const q = query(rentalCollection, where("roadLocation", "in", chunk));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         results.push({ id: doc.id, ...doc.data() });
