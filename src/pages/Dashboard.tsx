@@ -720,12 +720,8 @@ const Dashboard = () => {
                       <tbody className="bg-white divide-y divide-neutral-200">
                         {filteredProperties.map((property, index) => {
                           const isOwner = property.userId === user.id;
-                          // Fix: Define hasSubForLocation for each property
-                          const hasSubForLocation = (user.subscriptionLocations || []).some(
-                            (loc) =>
-                              loc.name.trim().toLowerCase() ===
-                              (property.roadLocation || "").trim().toLowerCase()
-                          );
+                          // You can keep hasSubForLocation if you use it elsewhere, but it's not needed for floor/flat display now
+
                           return (
                             <tr
                               key={property.id}
@@ -758,19 +754,15 @@ const Dashboard = () => {
                                     {property.roadLocation}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
-                                    ₹
-                                    {property.expectedPrice?.toLocaleString(
-                                      "en-IN"
-                                    )}
+                                    ₹{property.expectedPrice?.toLocaleString("en-IN")}
                                   </td>
+                                  {/* Floor No: Only for owner or admin */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {property.floorNo || "N/A"}
+                                    {(user.isAdmin || isOwner) ? property.floorNo || "N/A" : "_"}
                                   </td>
-                                  {/* Show flatNo only if user has subscription for location or it's their own property */}
+                                  {/* Flat No: Only for owner or admin */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || isOwner || hasSubForLocation)
-                                      ? property.flatNo || "N/A"
-                                      : "Hidden"}
+                                    {(user.isAdmin || isOwner) ? property.flatNo || "N/A" : "_"}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
@@ -792,22 +784,14 @@ const Dashboard = () => {
                                     {property.roadLocation}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
-                                    ₹
-                                    {property.rent
-                                      ? property.rent.toLocaleString("en-IN")
-                                      : "N/A"}
+                                    ₹{property.rent ? property.rent.toLocaleString("en-IN") : "N/A"}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    ₹
-                                    {property.deposit
-                                      ? property.deposit.toLocaleString("en-IN")
-                                      : "N/A"}
+                                    ₹{property.deposit ? property.deposit.toLocaleString("en-IN") : "N/A"}
                                   </td>
-                                  {/* Show flatNo only if user has subscription for location or it's their own property */}
+                                  {/* Flat No: Only for owner or admin */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || isOwner || hasSubForLocation)
-                                      ? property.flatNo || "N/A"
-                                      : "Hidden"}
+                                    {(user.isAdmin || isOwner) ? property.flatNo || "N/A" : "_"}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
