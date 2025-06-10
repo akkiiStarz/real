@@ -96,3 +96,4 @@ export const filterProperties = (properties: any[], filters: any): any[] => {
     return true;
   });
 };
+

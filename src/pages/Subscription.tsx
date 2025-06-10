@@ -31,6 +31,18 @@ const Subscription = () => {
   const [locations, setLocations] = useState<LocationOption[]>(initialLocations);
   const [total, setTotal] = useState(0);
 
+  const isLocationDisabled = (location: LocationOption) => {
+    if (!user || !user.subscriptionLocations) return false;
+    const sub = user.subscriptionLocations.find(
+      (sub) => sub.name.toLowerCase() === location.name.toLowerCase()
+    );
+    if (!sub || !sub.subscribedAt) return false;
+    const subscribedDate = new Date(sub.subscribedAt);
+    const now = new Date();
+    const diff = now.getTime() - subscribedDate.getTime();
+    return diff < 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+  };
+
   useEffect(() => {
     if (user && user.subscriptionLocations) {
       const updatedLocations = locations.map((loc) => ({
@@ -56,6 +68,12 @@ const Subscription = () => {
   }
 
   const toggleLocation = (id: string) => {
+    const location = locations.find((loc) => loc.id === id);
+    if (!location) return;
+    if (isLocationDisabled(location)) {
+      toast.error("You cannot change subscription for this location within 30 days.");
+      return;
+    }
     const updatedLocations = locations.map((loc) => {
       if (loc.id === id) {
         return { ...loc, isSelected: !loc.isSelected };
@@ -104,68 +122,71 @@ const Subscription = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {locations.map((location) => (
-            <div
-              key={location.id}
-              className={`cursor-pointer transition-all ${
-                isLocationSelected(location.id)
-                  ? "border-2 border-accent shadow-md rounded-lg"
-                  : "hover:shadow-md rounded-lg"
-              }`}
-              onClick={() => toggleLocation(location.id)}
-            >
-              <Card
-                className={`${
+          {locations.map((location) => {
+            const disabled = isLocationDisabled(location);
+            return (
+              <div
+                key={location.id}
+                className={`cursor-pointer transition-all ${
                   isLocationSelected(location.id)
-                    ? "border-2 border-accent shadow-md"
-                    : ""
-                }`}
+                    ? "border-2 border-accent shadow-md rounded-lg"
+                    : "hover:shadow-md rounded-lg"
+                } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+                onClick={() => !disabled && toggleLocation(location.id)}
+                title={disabled ? "Subscription changes disabled for 30 days after subscribing" : ""}
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-semibold text-neutral-900">
-                      {location.name}
-                    </h3>
-                    <p className="text-2xl font-bold text-accent mt-2">
-                      {formatCurrency(location.price)}
-                      <span className="text-sm text-neutral-500 font-normal">
-                        {" "}
-                        / month
-                      </span>
-                    </p>
-                  </div>
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      isLocationSelected(location.id)
-                        ? "bg-accent text-white"
-                        : "bg-neutral-200"
+                <Card
+                  className={`${isLocationSelected(location.id)
+                      ? "border-2 border-accent shadow-md"
+                      : ""
                     }`}
-                  >
-                    {isLocationSelected(location.id) ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <span></span>
-                    )}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-semibold text-neutral-900">
+                        {location.name}
+                      </h3>
+                      <p className="text-2xl font-bold text-accent mt-2">
+                        {formatCurrency(location.price)}
+                        <span className="text-sm text-neutral-500 font-normal">
+                          {" "}
+                          / month
+                        </span>
+                      </p>
+                    </div>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        isLocationSelected(location.id) || disabled
+                          ? "bg-accent text-white"
+                          : "bg-neutral-200"
+                      }`}
+                    >
+                      {(isLocationSelected(location.id) || disabled) ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <span></span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-start">
-                    <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
-                    <span>Access to all properties in {location.name}</span>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
+                      <span>Access to all properties in {location.name}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
+                      <span>Filter by property type, budget, and more</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
+                      <span>Share property details via WhatsApp</span>
+                    </div>
                   </div>
-                  <div className="flex items-start">
-                    <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
-                    <span>Filter by property type, budget, and more</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Check className="h-5 w-5 text-success mr-2 mt-0.5" />
-                    <span>Share property details via WhatsApp</span>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          ))}
+                </Card>
+              </div>
+            );
+          })}
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -226,6 +247,7 @@ const Subscription = () => {
                   id: loc.id,
                   name: loc.name.toLowerCase().trim(),
                   price: loc.price,
+                  subscribedAt: new Date().toISOString(), // Add this line
                 }));
 
               if (subscriptionLocations.length === 0) {

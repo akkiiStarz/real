@@ -20,6 +20,7 @@ export interface SubscriptionLocation {
   id: string;
   name: string;
   price: number;
+  subscribedAt?: string;
 }
 
 // Property related types

@@ -719,10 +719,9 @@ const Dashboard = () => {
 
                       <tbody className="bg-white divide-y divide-neutral-200">
                         {filteredProperties.map((property, index) => {
-                          // Determine if user has subscription for property's location
-                          const hasSubForLocation = (
-                            user.subscriptionLocations || []
-                          ).some(
+                          const isOwner = property.userId === user.id;
+                          // Fix: Define hasSubForLocation for each property
+                          const hasSubForLocation = (user.subscriptionLocations || []).some(
                             (loc) =>
                               loc.name.trim().toLowerCase() ===
                               (property.roadLocation || "").trim().toLowerCase()
@@ -731,9 +730,7 @@ const Dashboard = () => {
                             <tr
                               key={property.id}
                               className={`hover:bg-neutral-50 ${
-                                isPropertySelected(property.id)
-                                  ? "bg-primary/5"
-                                  : ""
+                                isPropertySelected(property.id) ? "bg-primary/5" : ""
                               }`}
                             >
                               <td className="px-4 py-4 whitespace-nowrap text-left">
@@ -752,7 +749,7 @@ const Dashboard = () => {
                               {propertyCategory === "Resale" && (
                                 <>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {property.directBroker}
+                                    {isOwner ? "Direct" : "Broker"}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
@@ -771,7 +768,7 @@ const Dashboard = () => {
                                   </td>
                                   {/* Show flatNo only if user has subscription for location or it's their own property */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
+                                    {(user.isAdmin || isOwner || hasSubForLocation)
                                       ? property.flatNo || "N/A"
                                       : "Hidden"}
                                   </td>
@@ -786,7 +783,7 @@ const Dashboard = () => {
                               {propertyCategory === "Rental" && (
                                 <>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {property.directBroker}
+                                    {isOwner ? "Direct" : "Broker"}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
@@ -808,7 +805,7 @@ const Dashboard = () => {
                                   </td>
                                   {/* Show flatNo only if user has subscription for location or it's their own property */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
+                                    {(user.isAdmin || isOwner || hasSubForLocation)
                                       ? property.flatNo || "N/A"
                                       : "Hidden"}
                                   </td>
