@@ -14,7 +14,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
-import Tabs from "../components/ui/Tabs"; // Adjust import path if needed
+import Tabs from "../components/ui/Tabs";
 import {
   fetchStationsByCity,
   fetchLocalitiesByCity,
@@ -23,9 +23,6 @@ import {
 import {
   getUsers,
   getResaleProperties,
-  getRentalProperties,
-  getResalePropertiesByLocations,
-  getRentalPropertiesByLocations,
 } from "../utils/firestoreListings";
 import { generateWhatsAppText } from "../utils/helper";
 import { PropertyCategory } from "../types";
@@ -41,53 +38,47 @@ const bhkOptions = [
   { value: "5 BHK", label: "5 BHK" },
 ];
 
-const fetchAndLogSubscribedListings = async (user) => {
-  if (!user || !user.subscriptionLocations) {
-    console.log("No user or no subscriptions");
-    return;
-  }
-
-  // Normalize subscription locations
-  const subscriptionLocs = user.subscriptionLocations
-    .map((loc) => loc.name.trim().toLowerCase())
-    .filter(Boolean);
-
-  // Fetch all users
-  const allUsers = await getUsers();
-  let allResale = [];
-
-  // Fetch all resale properties for all users
-  for (const u of allUsers) {
-    const resale = await getResaleProperties(u.id);
-    allResale = allResale.concat(resale);
-  }
-
-  // Filter by approved and matching location
-  const matchingResale = allResale.filter(
-    (p) =>
-      p.status === "Approved" &&
-      subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
-  );
-
-  console.log("User subscription locations:", subscriptionLocs);
-  console.log("All resale property locations:", allResale.map((p) => p.roadLocation));
-  console.log("Matching resale listings:", matchingResale);
-};
+interface SubscriptionLocation {
+  name: string;
+}
+interface User {
+  id: string;
+  isAdmin?: boolean;
+  subscriptionLocations?: SubscriptionLocation[];
+  fullName?: string;
+  phone?: string;
+}
+interface ResaleProperty {
+  id: string;
+  status: string;
+  userId?: string;
+  society?: string | number;
+  roadLocation?: string;
+  expectedPrice?: number;
+  floorNo?: string | number;
+  flatNo?: string | number;
+  contactName?: string;
+  contactNumber?: string;
+  type?: string;
+  station?: string;
+  cosmo?: boolean;
+  rent?: number;
+  deposit?: number;
+  directBroker?: string;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [propertyCategory, setPropertyCategory] =
     useState<PropertyCategory>("Resale");
-  const [inventory, setInventory] = useState<{ resale: any[]; rental: any[] }>({
+  const [inventory, setInventory] = useState<{ resale: ResaleProperty[]; rental: ResaleProperty[] }>({
     resale: [],
     rental: [],
   });
-  const [filteredProperties, setFilteredProperties] = useState<any[]>([]);
-  const [selectedProperties, setSelectedProperties] = useState<any[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<ResaleProperty[]>([]);
+  const [selectedProperties, setSelectedProperties] = useState<ResaleProperty[]>([]);
   const [hasFiltered, setHasFiltered] = useState(false);
   const [banners, setBanners] = useState<any[]>([]);
-  const [stations, setStations] = useState<string[]>([]);
-  const [localities, setLocalities] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     bhkType: "",
     station: "",
@@ -97,21 +88,24 @@ const Dashboard = () => {
     lookingForCosmo: undefined as boolean | undefined,
   });
   const [showFilters, setShowFilters] = useState(false);
+
+  // WhatsApp fields
+  const [receiverPrefix, setReceiverPrefix] = useState("");
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverWhatsApp, setReceiverWhatsApp] = useState("");
+
   const navigate = useNavigate();
 
-  // Fetch and filter listings based on subscription locations
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
 
     const fetchData = async () => {
       try {
-        // Normalize subscription locations
         const subscriptionLocs = (user.subscriptionLocations || [])
           .map(loc => loc.name.trim().toLowerCase())
           .filter(Boolean);
 
-        // Fetch all users and their resale properties
         const allUsers = await getUsers();
         let allResale: ResaleProperty[] = [];
         for (const u of allUsers) {
@@ -119,24 +113,17 @@ const Dashboard = () => {
           allResale = allResale.concat(resale);
         }
 
-        // Filter by approved and matching location
         const matchingResale: ResaleProperty[] = allResale.filter(
           (p: ResaleProperty) =>
             p.status === "Approved" &&
             subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
         );
 
-        // Set inventory and filteredProperties so it shows in the table
         if (isMounted) {
-          setInventory({ resale: matchingResale, rental: [] }); // Only resale for now
+          setInventory({ resale: matchingResale, rental: [] });
           setFilteredProperties(matchingResale);
           setHasFiltered(true);
         }
-
-        // Debug logs
-        console.log("User subscription locations:", subscriptionLocs);
-        console.log("All resale property locations:", allResale.map((p) => p.roadLocation));
-        console.log("Matching resale listings:", matchingResale);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
@@ -163,21 +150,7 @@ const Dashboard = () => {
     };
   }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      fetchAndLogSubscribedListings(user);
-    }
-  }, [user]);
-
-  const loadStationsAndLocalities = async (city: string) => {
-    if (!city) return;
-    const stationData = await fetchStationsByCity(city);
-    setStations(stationData);
-    const localitiesData = await fetchLocalitiesByCity(city);
-    setLocalities(localitiesData);
-  };
-
-  const handleFilterChange = (name: string, value: any) => {
+  const handleFilterChange = (name: string, value: string | number | boolean | undefined) => {
     setFilters((prev) => ({
       ...prev,
       [name]: value,
@@ -191,31 +164,22 @@ const Dashboard = () => {
     if (!user) return;
     const properties =
       propertyCategory === "Rental" ? inventory.rental : inventory.resale;
-    const filtered = properties.filter((property: any) => {
-      // Subscription location filter
+    const filtered = properties.filter((property: ResaleProperty) => {
       if (!ignoreSubscriptionFilter && !user.isAdmin) {
         const hasSubscriptionForLocation = (
           user.subscriptionLocations || []
-        ).some((loc) => {
-          // Compare normalized subscription location name with property roadLocation
-          return (
-            loc.name.trim().toLowerCase() ===
-            (property.roadLocation || "").trim().toLowerCase()
-          );
-        });
-
-        // Always show user's own properties
+        ).some((loc) =>
+          loc.name.trim().toLowerCase() ===
+          (property.roadLocation || "").trim().toLowerCase()
+        );
         const isOwnProperty = property.userId === user.id;
-
         if (!hasSubscriptionForLocation && !isOwnProperty) {
           return false;
         }
       }
-      // BHK filter
       if (currentFilters.bhkType && property.type !== currentFilters.bhkType) {
         return false;
       }
-      // Station filter
       if (currentFilters.station) {
         const filterStr = currentFilters.station.trim().toLowerCase();
         const stationWords = (property.station || "")
@@ -227,19 +191,18 @@ const Dashboard = () => {
         );
         if (!match) return false;
       }
-      // Budget filter
       if (propertyCategory === "Rental") {
         if (
           currentFilters.minBudget &&
           Number(currentFilters.minBudget) > 0 &&
-          property.rent < Number(currentFilters.minBudget)
+          (property.rent ?? 0) < Number(currentFilters.minBudget)
         ) {
           return false;
         }
         if (
           currentFilters.maxBudget &&
           Number(currentFilters.maxBudget) > 0 &&
-          property.rent > Number(currentFilters.maxBudget)
+          (property.rent ?? 0) > Number(currentFilters.maxBudget)
         ) {
           return false;
         }
@@ -248,27 +211,25 @@ const Dashboard = () => {
         if (
           currentFilters.minBudget &&
           Number(currentFilters.minBudget) > 0 &&
-          property.expectedPrice < Number(currentFilters.minBudget)
+          (property.expectedPrice ?? 0) < Number(currentFilters.minBudget)
         ) {
           return false;
         }
         if (
           currentFilters.maxBudget &&
           Number(currentFilters.maxBudget) > 0 &&
-          property.expectedPrice > Number(currentFilters.maxBudget)
+          (property.expectedPrice ?? 0) > Number(currentFilters.maxBudget)
         ) {
           return false;
         }
       }
-      // Sub-location filter (normalize for comparison)
       if (
         currentFilters.subLocation &&
         (property.roadLocation || "").trim().toLowerCase() !==
-          currentFilters.subLocation.trim().toLowerCase()
+        currentFilters.subLocation.trim().toLowerCase()
       ) {
         return false;
       }
-      // Cosmo filter
       if (
         currentFilters.lookingForCosmo !== undefined &&
         property.cosmo !== currentFilters.lookingForCosmo
@@ -288,7 +249,6 @@ const Dashboard = () => {
       setHasFiltered(false);
       return;
     }
-    // Automatically apply filters when subscriptionLocations or inventory changes
     applyFilters(false);
     // eslint-disable-next-line
   }, [user?.subscriptionLocations, propertyCategory, inventory]);
@@ -307,7 +267,7 @@ const Dashboard = () => {
     setSelectedProperties([]);
   };
 
-  const togglePropertySelection = (property: any) => {
+  const togglePropertySelection = (property: ResaleProperty) => {
     if (selectedProperties.some((p) => p.id === property.id)) {
       setSelectedProperties(
         selectedProperties.filter((p) => p.id !== property.id)
@@ -319,6 +279,28 @@ const Dashboard = () => {
 
   const isPropertySelected = (id: string) => {
     return selectedProperties.some((p) => p.id === id);
+  };
+
+  // WhatsApp send handler for sidebar
+  const sendWhatsAppToInput = () => {
+    if (!receiverName.trim() || !receiverWhatsApp.trim()) {
+      alert("Please enter both name and WhatsApp number.");
+      return;
+    }
+    if (selectedProperties.length === 0) {
+      alert("Please select at least one property.");
+      return;
+    }
+    const text = generateWhatsAppText(
+      selectedProperties,
+      receiverPrefix,
+      receiverName,
+      receiverWhatsApp
+    );
+    const phoneNumber = receiverWhatsApp.replace(/\D/g, "");
+    const encodedText = encodeURIComponent(text);
+    // This opens WhatsApp Web with the message and number
+    window.open(`https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`, "_blank");
   };
 
   const shareOnWhatsApp = () => {
@@ -386,7 +368,6 @@ const Dashboard = () => {
             >
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-
             {user?.isAdmin && (
               <Link to="/inventory">
                 <Button variant="primary">Add New Property</Button>
@@ -421,21 +402,19 @@ const Dashboard = () => {
           </label>
           <div className="flex border border-neutral-300 rounded-md overflow-hidden w-full max-w-xs">
             <button
-              className={`flex-1 py-2 ${
-                propertyCategory === "Resale"
+              className={`flex-1 py-2 ${propertyCategory === "Resale"
                   ? "bg-primary text-white"
                   : "bg-white text-neutral-700"
-              }`}
+                }`}
               onClick={() => setPropertyCategory("Resale")}
             >
               Resale
             </button>
             <button
-              className={`flex-1 py-2 ${
-                propertyCategory === "Rental"
+              className={`flex-1 py-2 ${propertyCategory === "Rental"
                   ? "bg-primary text-white"
                   : "bg-white text-neutral-700"
-              }`}
+                }`}
               onClick={() => setPropertyCategory("Rental")}
             >
               Rental
@@ -454,7 +433,28 @@ const Dashboard = () => {
                 </Button>
               </div>
               <div className="space-y-4">
-                {/* Remove Property Category toggle from here */}
+                <Input
+                  id="receiverPrefix"
+                  label="Prefix (Mr)"
+                  placeholder="Enter name prefix"
+                  value={receiverPrefix}
+                  onChange={e => setReceiverPrefix(e.target.value)}
+                />
+                <Input
+                  id="receiverName"
+                  label="Name"
+                  placeholder="Enter name"
+                  value={receiverName}
+                  onChange={e => setReceiverName(e.target.value)}
+                />
+                <Input
+                  id="receiverWhatsApp"
+                  label="WhatsApp Number"
+                  placeholder="Enter WhatsApp number"
+                  value={receiverWhatsApp}
+                  onChange={e => setReceiverWhatsApp(e.target.value)}
+                />
+
                 <Select
                   id="bhkType"
                   label="BHK Type"
@@ -504,11 +504,10 @@ const Dashboard = () => {
                   </p>
                   <div className="flex space-x-4">
                     <div
-                      className={`px-3 py-2 border rounded-md cursor-pointer ${
-                        filters.lookingForCosmo === true
+                      className={`px-3 py-2 border rounded-md cursor-pointer ${filters.lookingForCosmo === true
                           ? "bg-primary text-white border-primary"
                           : "border-neutral-300"
-                      }`}
+                        }`}
                       onClick={() =>
                         handleFilterChange("lookingForCosmo", true)
                       }
@@ -516,11 +515,10 @@ const Dashboard = () => {
                       Yes
                     </div>
                     <div
-                      className={`px-3 py-2 border rounded-md cursor-pointer ${
-                        filters.lookingForCosmo === false
+                      className={`px-3 py-2 border rounded-md cursor-pointer ${filters.lookingForCosmo === false
                           ? "bg-primary text-white border-primary"
                           : "border-neutral-300"
-                      }`}
+                        }`}
                       onClick={() =>
                         handleFilterChange("lookingForCosmo", false)
                       }
@@ -543,8 +541,8 @@ const Dashboard = () => {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {!user ||
-            ((user.subscriptionLocations || []).length === 0 &&
-              !user.isAdmin) ? (
+              ((user.subscriptionLocations || []).length === 0 &&
+                !user.isAdmin) ? (
               <Card>
                 <div className="text-center py-8">
                   <Building className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
@@ -614,11 +612,32 @@ const Dashboard = () => {
                       </Button>
                       <Button
                         variant="primary"
-                        size="sm"
+                        fullWidth
                         icon={<Share2 className="h-4 w-4 mr-1" />}
-                        onClick={shareOnWhatsApp}
+                        onClick={() => {
+                          if (!receiverName.trim() || !receiverWhatsApp.trim()) {
+                            alert("Please enter both name and WhatsApp number.");
+                            return;
+                          }
+                          if (selectedProperties.length === 0) {
+                            alert("Please select at least one property.");
+                            return;
+                          }
+                          const text = generateWhatsAppText(
+                            selectedProperties,
+                            receiverPrefix,
+                            receiverName,
+                            receiverWhatsApp
+                          );
+                          const phoneNumber = receiverWhatsApp.replace(/\D/g, "");
+                          const encodedText = encodeURIComponent(text);
+                          window.open(
+                            `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`,
+                            "_blank"
+                          );
+                        }}
                       >
-                        Share on WhatsApp
+                        Send on WhatsApp
                       </Button>
                     </div>
                   </div>
@@ -682,7 +701,7 @@ const Dashboard = () => {
                                 FLAT No
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Name 
+                                Name
                               </th>
                             </>
                           )}
@@ -707,7 +726,7 @@ const Dashboard = () => {
                                 FLAT No
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Name 
+                                Name
                               </th>
                             </>
                           )}
@@ -719,15 +738,20 @@ const Dashboard = () => {
 
                       <tbody className="bg-white divide-y divide-neutral-200">
                         {filteredProperties.map((property, index) => {
-                          const isOwner = property.userId === user.id;
-                          // You can keep hasSubForLocation if you use it elsewhere, but it's not needed for floor/flat display now
-
+                          const hasSubForLocation = (
+                            user.subscriptionLocations || []
+                          ).some(
+                            (loc) =>
+                              loc.name.trim().toLowerCase() ===
+                              (property.roadLocation || "").trim().toLowerCase()
+                          );
                           return (
                             <tr
                               key={property.id}
-                              className={`hover:bg-neutral-50 ${
-                                isPropertySelected(property.id) ? "bg-primary/5" : ""
-                              }`}
+                              className={`hover:bg-neutral-50 ${isPropertySelected(property.id)
+                                  ? "bg-primary/5"
+                                  : ""
+                                }`}
                             >
                               <td className="px-4 py-4 whitespace-nowrap text-left">
                                 <input
@@ -744,29 +768,35 @@ const Dashboard = () => {
                               </td>
                               {propertyCategory === "Resale" && (
                                 <>
+                                  {/* Direct / Broker */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {isOwner ? "Direct" : "Broker"}
+                                    {(user.isAdmin || property.userId === user.id) ? "Direct" : "Broker"}
                                   </td>
+                                  {/* Building / Society */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
                                   </td>
+                                  {/* Road / Location */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.roadLocation}
                                   </td>
+                                  {/* Expected Price */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
                                     ₹{property.expectedPrice?.toLocaleString("en-IN")}
                                   </td>
-                                  {/* Floor No: Only for owner or admin */}
+                                  {/* Floor No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || isOwner) ? property.floorNo || "N/A" : "_"}
+                                    {(user.isAdmin || property.userId === user.id) ? (property.floorNo || "N/A") : "-"}
                                   </td>
-                                  {/* Flat No: Only for owner or admin */}
+                                  {/* Flat No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || isOwner) ? property.flatNo || "N/A" : "_"}
+                                    {(user.isAdmin || property.userId === user.id) ? (property.flatNo || "N/A") : "-"}
                                   </td>
+                                  {/* Name */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
                                   </td>
+                                  {/* Contact */}
                                   <td className="px-4 py-4 whitespace-nowrap text-center text-sm text-neutral-900">
                                     {property.contactNumber}
                                   </td>
@@ -774,28 +804,35 @@ const Dashboard = () => {
                               )}
                               {propertyCategory === "Rental" && (
                                 <>
+                                  {/* Direct / Broker */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {isOwner ? "Direct" : "Broker"}
+                                    {(user.isAdmin || property.userId === user.id) ? "Direct" : "Broker"}
                                   </td>
+                                  {/* Building / Society */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
                                   </td>
+                                  {/* Road / Location */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.roadLocation}
                                   </td>
+                                  {/* Rent */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
                                     ₹{property.rent ? property.rent.toLocaleString("en-IN") : "N/A"}
                                   </td>
+                                  {/* Deposit */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     ₹{property.deposit ? property.deposit.toLocaleString("en-IN") : "N/A"}
                                   </td>
-                                  {/* Flat No: Only for owner or admin */}
+                                  {/* Flat No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || isOwner) ? property.flatNo || "N/A" : "_"}
+                                    {(user.isAdmin || property.userId === user.id) ? (property.flatNo || "N/A") : "-"}
                                   </td>
+                                  {/* Name */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
                                   </td>
+                                  {/* Contact */}
                                   <td className="px-4 py-4 whitespace-nowrap text-center text-sm text-neutral-900">
                                     {property.contactNumber}
                                   </td>

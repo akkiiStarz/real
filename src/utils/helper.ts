@@ -15,20 +15,27 @@ export const calculateSubscriptionTotal = (locations: SubscriptionLocation[]): n
 };
 
 // Generate WhatsApp sharing text for properties
-export const generateWhatsAppText = (properties: any[], brokerName: string, phone: string, totalResaleCount?: number): string => {
+export const generateWhatsAppText = (
+  properties: any[],
+  prefix: string,
+  name: string,
+  phone: string,
+  user?: { id: string; isAdmin?: boolean }, // Pass user info
+  totalResaleCount?: number
+): string => {
   const totalCount = totalResaleCount !== undefined ? totalResaleCount : properties.length;
-  let text = `Hello! ${brokerName},\n\nWe are pleased to share with you ${totalCount} resale properties that match your requirements and budget.\n\nHere are the details of the ${properties.length} selected properties:\n\n`;
-  
+  let text = `Hello! ${prefix ? prefix + " " : ""}${name},\n\nWe are pleased to share with you ${totalCount} resale properties that match your requirements and budget.\n\nHere are the details of the ${properties.length} selected properties:\n\n`;
+
   properties.forEach((property) => {
     text += `✅ ${property.society}\n`;
-    
-    // Include all compare fields in the message
+
     const fields = [
       property.roadLocation,
       property.type,
       property.directBroker,
-      property.floorNo ? `Floor No: ${property.floorNo}` : null,
-      property.flatNo ? `Flat No: ${property.flatNo}` : null,
+      // Only show floorNo and flatNo if admin or owner
+      (user?.isAdmin || property.userId === user?.id) ? (property.floorNo ? `Floor No: ${property.floorNo}` : null) : null,
+      (user?.isAdmin || property.userId === user?.id) ? (property.flatNo ? `Flat No: ${property.flatNo}` : null) : null,
       property.rent ? `Rent: ₹${property.rent}` : null,
       property.deposit ? `Deposit: ₹${property.deposit}` : null,
       property.expectedPrice ? `Expected Price: ₹${property.expectedPrice}` : null,
@@ -38,9 +45,9 @@ export const generateWhatsAppText = (properties: any[], brokerName: string, phon
 
     text += `* - ${fields.join(', ')}\n\n`;
   });
-  
-  text += `Thank you for considering Deals4Property.\n\nBest regards,\nSudhir Gupta\n7304652722\n\n${brokerName}\n${phone}`;
-  
+
+  text += `Thank you for considering Deals4Property.\n\nBest regards,\nSudhir Gupta\n7304652722`;
+
   return text;
 };
 
