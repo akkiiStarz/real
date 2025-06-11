@@ -39,8 +39,6 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-
-
   return children;
 };
 
@@ -60,8 +58,30 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+// New component for login route to fix hook order violation
+const LoginRoute = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <Loading />;
+  if (user) return <Navigate to="/dashboard" state={{ from: location }} replace />;
+
+  return <Login />;
+};
+
+// New component for signup route to fix hook order violation
+const SignupRoute = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <Loading />;
+  if (user) return <Navigate to="/dashboard" state={{ from: location }} replace />;
+
+  return <Signup />;
+};
+
 function App() {
-  const { user, loading } = useAuth(); // <-- use loading state
+  const { loading } = useAuth(); // use loading state
   const location = useLocation();
 
   // Scroll to top on route change
@@ -79,63 +99,64 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="login" element={
-            (() => {
-              const { user, loading } = useAuth();
-              if (loading) return <Loading />;
-              return user ? <Navigate to="/dashboard" /> : <Login />;
-            })()
-          } />
-          <Route path="signup" element={
-            (() => {
-              const { user, loading } = useAuth();
-              if (loading) return <Loading />;
-              return user ? <Navigate to="/dashboard" /> : <Signup />;
-            })()
-          } />
-          
-          <Route path="dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="inventory" element={
-            <ProtectedRoute>
-              <Inventory />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="subscription" element={
-            <ProtectedRoute>
-              <Subscription />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="subscription/checkout" element={
-            <ProtectedRoute>
-              <SubscriptionCheckout />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="admin" element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          } />
-          
-          <Route path="compare" element={
-            <ProtectedRoute>
-              <Compare />
-            </ProtectedRoute>
-          } />
-          
+          <Route path="login" element={<LoginRoute />} />
+          <Route path="signup" element={<SignupRoute />} />
+          <Route
+            path="dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="inventory"
+            element={
+              <ProtectedRoute>
+                <Inventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="subscription"
+            element={
+              <ProtectedRoute>
+                <Subscription />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="subscription/checkout"
+            element={
+              <ProtectedRoute>
+                <SubscriptionCheckout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin"
+            element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="compare"
+            element={
+              <ProtectedRoute>
+                <Compare />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

@@ -73,101 +73,100 @@ const Admin = () => {
     fetchData();
   }, [user]);
 
-const handleApproveProperty = async (
-  id: string,
-  category: "resale" | "rental"
-) => {
-  try {
-    console.log(`Starting approval for property id: ${id}, category: ${category}`);
-    setActionLoading(true);
-    const property = inventory[category].find((p: any) => p.id === id);
-    if (!property) {
-      console.error("Property not found for approval");
-      toast.error("Property not found");
-      setActionLoading(false);
-      return;
-    }
-    // Check admin role before approving
-    if (!user?.isAdmin) {
-      console.error("User does not have permission to approve properties");
-      toast.error("You do not have permission to approve properties.");
-      setActionLoading(false);
-      return;
-    }
-    await updatePropertyStatus(property.userId, category, id, "Approved", true);
-    console.log(`Backend updated for property id: ${id}`);
+  const handleApproveProperty = async (
+    id: string,
+    category: "resale" | "rental"
+  ) => {
+    try {
+      console.log(`Starting approval for property id: ${id}, category: ${category}`);
+      setActionLoading(true);
+      const property = inventory[category].find((p: any) => p.id === id);
+      if (!property) {
+        console.error("Property not found for approval");
+        toast.error("Property not found");
+        setActionLoading(false);
+        return;
+      }
+      // Check admin role before approving
+      if (!user?.isAdmin) {
+        console.error("User does not have permission to approve properties");
+        toast.error("You do not have permission to approve properties.");
+        setActionLoading(false);
+        return;
+      }
+      await updatePropertyStatus(property.userId, category, id, "Approved", true);
+      console.log(`Backend updated for property id: ${id}`);
 
-    setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
-      const updatedProperties = (prevInventory[category] || []).map(
-        (property: any) => {
-          if (property.id === id) {
-            console.log(`Updating UI state for property id: ${id}`);
-            return { ...property, status: "Approved", isApproved: true };
+      setInventory((prevInventory) => {
+        const updatedProperties = (prevInventory[category] || []).map(
+          (property: any) => {
+            if (property.id === id) {
+              console.log(`Updating UI state for property id: ${id}`);
+              return { ...property, status: "Approved", isApproved: true };
+            }
+            return property;
           }
-          return property;
-        }
-      );
+        );
+        return {
+          ...prevInventory,
+          [category]: updatedProperties,
+        };
+      });
 
-      return {
-        ...prevInventory,
-        [category]: updatedProperties,
-      };
-    });
-
-    toast.success("Property approved successfully");
-    console.log(`Approval process completed for property id: ${id}`);
-  } catch (error) {
-    console.error("Error approving property:", error);
-    toast.error("Failed to approve property");
-  } finally {
-    setActionLoading(false);
-  }
-};
-
-const handleRejectProperty = async (
-  id: string,
-  category: "resale" | "rental"
-) => {
-  try {
-    setActionLoading(true);
-    const property = inventory[category].find((p: any) => p.id === id);
-    if (!property) {
-      toast.error("Property not found");
+      toast.success("Property approved successfully");
+      console.log(`Approval process completed for property id: ${id}`);
+    } catch (error) {
+      console.error("Error approving property:", error);
+      toast.error("Failed to approve property");
+    } finally {
       setActionLoading(false);
-      return;
     }
-    // Check admin role before rejecting
-    if (!user?.isAdmin) {
-      toast.error("You do not have permission to reject properties.");
-      setActionLoading(false);
-      return;
-    }
-    await updatePropertyStatus(property.userId, category, id, "Rejected", false);
+  };
 
-    setInventory((prevInventory: { resale: any[]; rental: any[] }) => {
-      const updatedProperties = (prevInventory[category] || []).map(
-        (property: any) => {
-          if (property.id === id) {
-            return { ...property, status: "Rejected", isApproved: false };
+  const handleRejectProperty = async (
+    id: string,
+    category: "resale" | "rental"
+  ) => {
+    try {
+      setActionLoading(true);
+      const property = inventory[category].find((p: any) => p.id === id);
+      if (!property) {
+        toast.error("Property not found");
+        setActionLoading(false);
+        return;
+      }
+      // Check admin role before rejecting
+      if (!user?.isAdmin) {
+        toast.error("You do not have permission to reject properties.");
+        setActionLoading(false);
+        return;
+      }
+      await updatePropertyStatus(property.userId, category, id, "Rejected", false);
+
+      setInventory((prevInventory) => {
+        const updatedProperties = (prevInventory[category] || []).map(
+          (property: any) => {
+            if (property.id === id) {
+              return { ...property, isApproved: false };
+            }
+            return property;
           }
-          return property;
-        }
-      );
+        );
 
-      return {
-        ...prevInventory,
-        [category]: updatedProperties,
-      };
-    });
+        return {
+          ...prevInventory,
+          [category]: updatedProperties,
+        };
+      });
 
-    toast.success("Property rejected");
-  } catch (error) {
-    console.error("Error rejecting property:", error);
-    toast.error("Failed to reject property");
-  } finally {
-    setActionLoading(false);
-  }
-};
+      toast.success("Property rejected");
+    } catch (error) {
+      console.error("Error rejecting property:", error);
+      toast.error("Failed to reject property");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const viewUserDetails = (user: User) => {
     setUserDetails(user);
@@ -237,9 +236,9 @@ const handleRejectProperty = async (
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.resale.filter(p => p.status === "Pending Approval").map((property: any) => (
+                                    {inventory.resale.filter(p => p.status === "Pending Approval").map((property: any, index: number) => (
                                       <tr
-                                        key={property.id}
+                                        key={property.id + '-' + index}
                                         className="hover:bg-neutral-50"
                                       >
                                         <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
@@ -347,9 +346,9 @@ const handleRejectProperty = async (
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.rental.map((property: any) => (
+                                    {inventory.rental.map((property: any, index: number) => (
                                       <tr
-                                        key={property.id}
+                                        key={property.id + '-' + index}
                                         className="hover:bg-neutral-50"
                                       >
                                         <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500">
@@ -902,16 +901,16 @@ const handleRejectProperty = async (
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
                               {user.subscriptionLocations &&
-                              user.subscriptionLocations.length > 0 ? (
+                                user.subscriptionLocations.length > 0 ? (
                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
-                              {user.subscriptionLocations.length} locations
-                            </span>
-                          ) : (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-neutral-100 text-neutral-600">
-                              No subscriptions
-                            </span>
-                          )}
-                        </td>
+                                  {user.subscriptionLocations.length} locations
+                                </span>
+                              ) : (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-neutral-100 text-neutral-600">
+                                  No subscriptions
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-900">
                               <Button
                                 variant="text"
@@ -1066,15 +1065,14 @@ const handleRejectProperty = async (
             <div className="p-4">
               <div className="mb-4">
                 <span
-                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    showPropertyDetails.status === "Approved"
+                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${showPropertyDetails.isApproved
                       ? "bg-success/10 text-success"
                       : showPropertyDetails.status === "Rejected"
-                      ? "bg-error/10 text-error"
-                      : "bg-warning/10 text-warning"
-                  }`}
+                        ? "bg-error/10 text-error"
+                        : "bg-warning/10 text-warning"
+                    }`}
                 >
-                  {showPropertyDetails.status}
+                  {showPropertyDetails.isApproved ? "Approved" : "Pending Approval"}
                 </span>
                 <span className="ml-2 text-sm text-neutral-500">
                   Created on{" "}
@@ -1310,7 +1308,7 @@ const handleRejectProperty = async (
                       </h4>
                       <div className="bg-neutral-50 rounded-md p-4">
                         {!showPropertyDetails.amenities ||
-                        showPropertyDetails.amenities.length === 0 ? (
+                          showPropertyDetails.amenities.length === 0 ? (
                           <p className="text-neutral-500 text-sm">
                             No amenities specified
                           </p>

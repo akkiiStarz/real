@@ -15,6 +15,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import Tabs from "../components/ui/Tabs";
+import { Tooltip } from "react-tooltip";
 import {
   fetchStationsByCity,
   fetchLocalitiesByCity,
@@ -38,6 +39,12 @@ const bhkOptions = [
   { value: "5 BHK", label: "5 BHK" },
 ];
 
+const locationOptions = [
+  { value: "Mira Road", label: "Mira Road" },
+  { value: "Mira-Bhayandar", label: "Mira-Bhayandar" },
+  { value: "Bhayandar", label: "Bhayandar" },
+];
+
 interface SubscriptionLocation {
   name: string;
 }
@@ -51,6 +58,7 @@ interface User {
 interface ResaleProperty {
   id: string;
   status: string;
+  userListingState?: string;
   userId?: string;
   society?: string | number;
   roadLocation?: string;
@@ -165,6 +173,13 @@ const Dashboard = () => {
     const properties =
       propertyCategory === "Rental" ? inventory.rental : inventory.resale;
     const filtered = properties.filter((property: ResaleProperty) => {
+      // Hide properties with listingState "Hold" or "Sold Out"
+      if (
+        property.listingState === "Hold" ||
+        property.listingState === "Sold Out"
+      ) {
+        return false;
+      }
       if (!ignoreSubscriptionFilter && !user.isAdmin) {
         const hasSubscriptionForLocation = (
           user.subscriptionLocations || []
@@ -373,6 +388,13 @@ const Dashboard = () => {
 
         {/* Chrome-style Tabs just below heading */}
         <div className="mb-4">
+        <div className="relative" onMouseLeave={() => {
+          const tooltip = document.getElementById("coming-soon-tooltip");
+          if (tooltip) {
+            tooltip.style.opacity = "0";
+            tooltip.style.pointerEvents = "none";
+          }
+        }}>
           <Tabs
             variant="chrome"
             tabs={[
@@ -387,7 +409,22 @@ const Dashboard = () => {
             ]}
             defaultTab="residential"
             className="mb-2"
+            onTabHover={(tabId: string) => {
+              const tooltip = document.getElementById("coming-soon-tooltip");
+              if (!tooltip) return;
+              if (tabId !== "residential") {
+                tooltip.style.opacity = "1";
+                tooltip.style.pointerEvents = "auto";
+              } else {
+                tooltip.style.opacity = "0";
+                tooltip.style.pointerEvents = "none";
+              }
+            }}
           />
+          <div className="absolute top-full left-0 mt-1 px-2 py-1 bg-black text-white text-xs rounded opacity-0 pointer-events-none transition-opacity duration-200" id="coming-soon-tooltip">
+            Coming Soon
+          </div>
+        </div>
         </div>
 
         {/* Property Category toggle just below Tabs */}
@@ -468,9 +505,10 @@ const Dashboard = () => {
                     handleFilterChange("bhkType", e.target.value)
                   }
                 />
-                <Input
+                <Select
                   id="station"
                   label="Station"
+                  options={locationOptions}
                   value={filters.station}
                   onChange={(e) =>
                     handleFilterChange("station", e.target.value)
@@ -732,7 +770,7 @@ const Dashboard = () => {
                           );
                           return (
                             <tr
-                              key={property.id}
+                              key={property.id + '-' + index}
                               className={`hover:bg-neutral-50 ${
                                 isPropertySelected(property.id)
                                   ? "bg-primary/5"

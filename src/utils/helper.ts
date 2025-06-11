@@ -104,3 +104,22 @@ export const filterProperties = (properties: any[], filters: any): any[] => {
   });
 };
 
+// Example for filtering properties in Dashboard.tsx
+
+const hasSubscriptionForLocation = (user: User | null, location: string) => {
+  if (!user || !user.subscriptionLocations) return false;
+  return user.subscriptionLocations.some(sub => {
+    if (!sub.subscribedAt) return false;
+    const subscribedDate = new Date(sub.subscribedAt);
+    const now = new Date();
+    const diff = now.getTime() - subscribedDate.getTime();
+    // Only count as active if within 30 days
+    return (
+      sub.name.trim().toLowerCase() === location.trim().toLowerCase() &&
+      diff < 30 * 24 * 60 * 60 * 1000
+    );
+  });
+};
+
+
+

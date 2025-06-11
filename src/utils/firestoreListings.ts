@@ -2,30 +2,95 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc } from "fireb
 import { db } from "./firebase";
 
 export const addResaleProperty = async (userId: string, property: any) => {
+  const { status, ...rest } = property; // Remove status if present
   const resaleCollection = collection(db, "users", userId, "resaleProperties");
-  const docRef = await addDoc(resaleCollection, { ...property, userId });
+  const docRef = await addDoc(resaleCollection, { ...rest, userId });
   return docRef.id;
 };
 
 export const addRentalProperty = async (userId: string, property: any) => {
+  const { status, ...rest } = property; // Remove status if present
   const rentalCollection = collection(db, "users", userId, "rentalProperties");
-  const docRef = await addDoc(rentalCollection, { ...property, userId });
+  const docRef = await addDoc(rentalCollection, { ...rest, userId });
   return docRef.id;
 };
 
+export const updateUserListingState = async (
+  userId: string,
+  category: "resale" | "rental",
+  propertyId: string,
+  userListingState: string
+) => {
+  const propertyRef = doc(
+    db,
+    "users",
+    userId,
+    category === "resale" ? "resaleProperties" : "rentalProperties",
+    propertyId
+  );
+  await updateDoc(propertyRef, { userListingState });
+};
+
+// New function to update property status
 export const updatePropertyStatus = async (
   userId: string,
   category: "resale" | "rental",
   propertyId: string,
-  status: string,
-  isApproved?: boolean
+  status: string
 ) => {
-  const propertyRef = doc(db, "users", userId, category === "resale" ? "resaleProperties" : "rentalProperties", propertyId);
-  const updateData: any = { status };
-  if (typeof isApproved === "boolean") {
-    updateData.isApproved = isApproved;
-  }
-  await updateDoc(propertyRef, updateData);
+  const propertyRef = doc(
+    db,
+    "users",
+    userId,
+    category === "resale" ? "resaleProperties" : "rentalProperties",
+    propertyId
+  );
+  await updateDoc(propertyRef, { status });
+};
+
+// When user updates any other property info, set isApproved: false
+export const updateResaleProperty = async (
+  userId: string,
+  propertyId: string,
+  data: Record<string, unknown>
+) => {
+  const { userListingState, ...rest } = data; // Remove userListingState, keep status if present
+  const docRef = doc(db, "users", userId, "resaleProperties", propertyId);
+  await updateDoc(docRef, {
+    ...rest,
+    isApproved: false,
+    updatedAt: new Date().toISOString(),
+  });
+};
+
+export const updateRentalProperty = async (
+  userId: string,
+  propertyId: string,
+  data: Record<string, unknown>
+) => {
+  const { status, userListingState, ...rest } = data; // Remove status, don't overwrite userListingState
+  const docRef = doc(db, "users", userId, "rentalProperties", propertyId);
+  await updateDoc(docRef, {
+    ...rest,
+    isApproved: false,
+    updatedAt: new Date().toISOString(),
+  });
+};
+
+// Admin approval
+export const approveProperty = async (
+  userId: string,
+  category: "resale" | "rental",
+  propertyId: string
+) => {
+  const propertyRef = doc(
+    db,
+    "users",
+    userId,
+    category === "resale" ? "resaleProperties" : "rentalProperties",
+    propertyId
+  );
+  await updateDoc(propertyRef, { isApproved: true });
 };
 
 // New function to add property to adminApprovals collection for admin review
@@ -72,7 +137,7 @@ export const getRentalProperties = async (userId: string): Promise<any[]> => {
 export const getResalePropertiesByLocations = async (locations: string[]): Promise<any[]> => {
   const usersCollection = collection(db, "users");
   const usersSnapshot = await getDocs(usersCollection);
-  const results: any[] = [];
+  const results: Record<string, unknown>[] = [];
 
   // Chunk locations into groups of 10 for Firestore "in" query limit
   const chunkArray = (arr: string[], size: number) => {
