@@ -23,6 +23,8 @@ const initialLocations: LocationOption[] = [
   { id: "6", name: "Delhi", price: 1500, isSelected: false },
   { id: "7", name: "Bangalore", price: 1200, isSelected: false },
   { id: "8", name: "Pune", price: 1000, isSelected: false },
+  { id: "9", name: "Kandivali", price: 1000, isSelected: false },
+  { id: "10", name: "Nallasopara", price: 1000, isSelected: false },
 ];
 
 const Subscription = () => {

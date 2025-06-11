@@ -120,7 +120,7 @@ const Inventory = () => {
         flatNo: data.flatNo,
         cosmo: data.cosmo === 'true',
         connectedPerson: data.connectedPerson,
-        directBroker: data.directBroker,
+        // directBroker: data.directBroker,
         contactName: data.contactName,
         contactNumber: data.contactNumber,
       };
@@ -173,7 +173,7 @@ const Inventory = () => {
         masterBed: data.masterBed === 'true',
         cosmo: data.cosmo === 'true',
         connectedPerson: data.connectedPerson,
-        directBroker: data.directBroker,
+        // directBroker: data.directBroker,
         contactName: data.contactName,
         contactNumber: data.contactNumber,
         propertyId: data.propertyId,
@@ -494,54 +494,7 @@ const Inventory = () => {
                         />
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1">Direct/Broker</label>
-                          <div className="flex space-x-4">
-                            <label className="inline-flex items-center">
-                              <input 
-                                type="radio" 
-                                value="Direct" 
-                                {...registerResale('directBroker', { required: 'Please select an option' })}
-                                className="h-4 w-4 text-primary focus:ring-primary border-neutral-300"
-                              />
-                              <span className="ml-2">Direct</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                              <input 
-                                type="radio" 
-                                value="Broker" 
-                                {...registerResale('directBroker', { required: 'Please select an option' })}
-                                className="h-4 w-4 text-primary focus:ring-primary border-neutral-300"
-                              />
-                              <span className="ml-2">Broker</span>
-                            </label>
-                          </div>
-                          {errorsResale.directBroker && (
-                            <p className="mt-1 text-sm text-error">{errorsResale.directBroker.message as string}</p>
-                          )}
-                        </div>
-                        
-                        <Input
-                          id="contactName"
-                          label="Contact Name"
-                          error={errorsResale.contactName?.message as string}
-                          {...registerResale('contactName', { required: 'Contact name is required' })}
-                        />
-                        
-                        <Input
-                          id="contactNumber"
-                          label="Contact Number"
-                          error={errorsResale.contactNumber?.message as string}
-                          {...registerResale('contactNumber', { 
-                            required: 'Contact number is required',
-                            pattern: {
-                              value: /^[0-9]{10}$/,
-                              message: 'Please enter a valid 10-digit phone number'
-                            }
-                          })}
-                        />
-                      </div>
+                      {/*   */}
                       
                       <div className="pt-4">
                         <Button

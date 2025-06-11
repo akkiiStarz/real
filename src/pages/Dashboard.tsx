@@ -121,8 +121,8 @@ const Dashboard = () => {
 
         if (isMounted) {
           setInventory({ resale: matchingResale, rental: [] });
-          setFilteredProperties(matchingResale);
-          setHasFiltered(true);
+          setFilteredProperties([]); // Don't show any listings by default
+          setHasFiltered(false);     // User must apply filters to see listings
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -182,14 +182,8 @@ const Dashboard = () => {
       }
       if (currentFilters.station) {
         const filterStr = currentFilters.station.trim().toLowerCase();
-        const stationWords = (property.station || "")
-          .trim()
-          .toLowerCase()
-          .split(/\s+/);
-        const match = stationWords.some((word: string) =>
-          word.includes(filterStr)
-        );
-        if (!match) return false;
+        const stationStr = (property.station || "").trim().toLowerCase();
+        if (!stationStr.includes(filterStr)) return false;
       }
       if (propertyCategory === "Rental") {
         if (
@@ -226,7 +220,7 @@ const Dashboard = () => {
       if (
         currentFilters.subLocation &&
         (property.roadLocation || "").trim().toLowerCase() !==
-        currentFilters.subLocation.trim().toLowerCase()
+          currentFilters.subLocation.trim().toLowerCase()
       ) {
         return false;
       }
@@ -242,16 +236,17 @@ const Dashboard = () => {
     setHasFiltered(true);
   };
 
-  useEffect(() => {
-    if (!user) return;
-    if ((user.subscriptionLocations || []).length === 0 && !user.isAdmin) {
-      setFilteredProperties([]);
-      setHasFiltered(false);
-      return;
-    }
-    applyFilters(false);
-    // eslint-disable-next-line
-  }, [user?.subscriptionLocations, propertyCategory, inventory]);
+  // Disabled automatic filtering on inventory or subscription change to hide listings until user applies filters
+  // useEffect(() => {
+  //   if (!user) return;
+  //   if ((user.subscriptionLocations || []).length === 0 && !user.isAdmin) {
+  //     setFilteredProperties([]);
+  //     setHasFiltered(false);
+  //     return;
+  //   }
+  //   applyFilters(false);
+  //   // eslint-disable-next-line
+  // }, [user?.subscriptionLocations, propertyCategory, inventory]);
 
   const resetFilters = () => {
     setFilters({
@@ -402,19 +397,21 @@ const Dashboard = () => {
           </label>
           <div className="flex border border-neutral-300 rounded-md overflow-hidden w-full max-w-xs">
             <button
-              className={`flex-1 py-2 ${propertyCategory === "Resale"
+              className={`flex-1 py-2 ${
+                propertyCategory === "Resale"
                   ? "bg-primary text-white"
                   : "bg-white text-neutral-700"
-                }`}
+              }`}
               onClick={() => setPropertyCategory("Resale")}
             >
               Resale
             </button>
             <button
-              className={`flex-1 py-2 ${propertyCategory === "Rental"
+              className={`flex-1 py-2 ${
+                propertyCategory === "Rental"
                   ? "bg-primary text-white"
                   : "bg-white text-neutral-700"
-                }`}
+              }`}
               onClick={() => setPropertyCategory("Rental")}
             >
               Rental
@@ -454,7 +451,14 @@ const Dashboard = () => {
                   value={receiverWhatsApp}
                   onChange={e => setReceiverWhatsApp(e.target.value)}
                 />
-
+                {/* <Button
+                  variant="primary"
+                  fullWidth
+                  icon={<Share2 className="h-4 w-4 mr-1" />}
+                  onClick={sendWhatsAppToInput}
+                >
+                  Send on WhatsApp
+                </Button> */}
                 <Select
                   id="bhkType"
                   label="BHK Type"
@@ -504,10 +508,11 @@ const Dashboard = () => {
                   </p>
                   <div className="flex space-x-4">
                     <div
-                      className={`px-3 py-2 border rounded-md cursor-pointer ${filters.lookingForCosmo === true
+                      className={`px-3 py-2 border rounded-md cursor-pointer ${
+                        filters.lookingForCosmo === true
                           ? "bg-primary text-white border-primary"
                           : "border-neutral-300"
-                        }`}
+                      }`}
                       onClick={() =>
                         handleFilterChange("lookingForCosmo", true)
                       }
@@ -515,10 +520,11 @@ const Dashboard = () => {
                       Yes
                     </div>
                     <div
-                      className={`px-3 py-2 border rounded-md cursor-pointer ${filters.lookingForCosmo === false
+                      className={`px-3 py-2 border rounded-md cursor-pointer ${
+                        filters.lookingForCosmo === false
                           ? "bg-primary text-white border-primary"
                           : "border-neutral-300"
-                        }`}
+                      }`}
                       onClick={() =>
                         handleFilterChange("lookingForCosmo", false)
                       }
@@ -541,8 +547,8 @@ const Dashboard = () => {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {!user ||
-              ((user.subscriptionLocations || []).length === 0 &&
-                !user.isAdmin) ? (
+            ((user.subscriptionLocations || []).length === 0 &&
+              !user.isAdmin) ? (
               <Card>
                 <div className="text-center py-8">
                   <Building className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
@@ -612,32 +618,11 @@ const Dashboard = () => {
                       </Button>
                       <Button
                         variant="primary"
-                        fullWidth
+                        size="sm"
                         icon={<Share2 className="h-4 w-4 mr-1" />}
-                        onClick={() => {
-                          if (!receiverName.trim() || !receiverWhatsApp.trim()) {
-                            alert("Please enter both name and WhatsApp number.");
-                            return;
-                          }
-                          if (selectedProperties.length === 0) {
-                            alert("Please select at least one property.");
-                            return;
-                          }
-                          const text = generateWhatsAppText(
-                            selectedProperties,
-                            receiverPrefix,
-                            receiverName,
-                            receiverWhatsApp
-                          );
-                          const phoneNumber = receiverWhatsApp.replace(/\D/g, "");
-                          const encodedText = encodeURIComponent(text);
-                          window.open(
-                            `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodedText}`,
-                            "_blank"
-                          );
-                        }}
+                        onClick={shareOnWhatsApp}
                       >
-                        Send on WhatsApp
+                        Share on WhatsApp
                       </Button>
                     </div>
                   </div>
@@ -647,7 +632,7 @@ const Dashboard = () => {
                 <Card>
                   <div className="overflow-x-auto max-w-full">
                     <table className="min-w-full divide-y divide-neutral-200 table-auto" style={{ tableLayout: 'auto', transition: 'all 0.3s ease' }}>
-                      <thead>
+                          <thead>
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                             Select
@@ -701,7 +686,7 @@ const Dashboard = () => {
                                 FLAT No
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Name
+                                Name 
                               </th>
                             </>
                           )}
@@ -726,7 +711,7 @@ const Dashboard = () => {
                                 FLAT No
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Name
+                                Name 
                               </th>
                             </>
                           )}
@@ -748,10 +733,11 @@ const Dashboard = () => {
                           return (
                             <tr
                               key={property.id}
-                              className={`hover:bg-neutral-50 ${isPropertySelected(property.id)
+                              className={`hover:bg-neutral-50 ${
+                                isPropertySelected(property.id)
                                   ? "bg-primary/5"
                                   : ""
-                                }`}
+                              }`}
                             >
                               <td className="px-4 py-4 whitespace-nowrap text-left">
                                 <input
@@ -768,35 +754,32 @@ const Dashboard = () => {
                               </td>
                               {propertyCategory === "Resale" && (
                                 <>
-                                  {/* Direct / Broker */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id) ? "Direct" : "Broker"}
+                                    {property.userId === user?.id ? "Direct" : "Broker"}
                                   </td>
-                                  {/* Building / Society */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
                                   </td>
-                                  {/* Road / Location */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.roadLocation}
                                   </td>
-                                  {/* Expected Price */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
-                                    ₹{property.expectedPrice?.toLocaleString("en-IN")}
+                                    ₹
+                                    {property.expectedPrice?.toLocaleString(
+                                      "en-IN"
+                                    )}
                                   </td>
-                                  {/* Floor No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id) ? (property.floorNo || "N/A") : "-"}
+                                    {property.floorNo || "N/A"}
                                   </td>
-                                  {/* Flat No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id) ? (property.flatNo || "N/A") : "-"}
+                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
+                                      ? property.flatNo || "N/A"
+                                      : "Hidden"}
                                   </td>
-                                  {/* Name */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
                                   </td>
-                                  {/* Contact */}
                                   <td className="px-4 py-4 whitespace-nowrap text-center text-sm text-neutral-900">
                                     {property.contactNumber}
                                   </td>
@@ -804,35 +787,35 @@ const Dashboard = () => {
                               )}
                               {propertyCategory === "Rental" && (
                                 <>
-                                  {/* Direct / Broker */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id) ? "Direct" : "Broker"}
+                                    {property.userId === user?.id ? "Direct" : "Broker"}
                                   </td>
-                                  {/* Building / Society */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.society}
                                   </td>
-                                  {/* Road / Location */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.roadLocation}
                                   </td>
-                                  {/* Rent */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900 font-semibold">
-                                    ₹{property.rent ? property.rent.toLocaleString("en-IN") : "N/A"}
+                                    ₹
+                                    {property.rent
+                                      ? property.rent.toLocaleString("en-IN")
+                                      : "N/A"}
                                   </td>
-                                  {/* Deposit */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    ₹{property.deposit ? property.deposit.toLocaleString("en-IN") : "N/A"}
+                                    ₹
+                                    {property.deposit
+                                      ? property.deposit.toLocaleString("en-IN")
+                                      : "N/A"}
                                   </td>
-                                  {/* Flat No */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
-                                    {(user.isAdmin || property.userId === user.id) ? (property.flatNo || "N/A") : "-"}
+                                    {(user.isAdmin || property.userId === user.id || hasSubForLocation)
+                                      ? property.flatNo || "N/A"
+                                      : "Hidden"}
                                   </td>
-                                  {/* Name */}
                                   <td className="px-4 py-4 whitespace-nowrap text-left text-sm text-neutral-900">
                                     {property.contactName}
                                   </td>
-                                  {/* Contact */}
                                   <td className="px-4 py-4 whitespace-nowrap text-center text-sm text-neutral-900">
                                     {property.contactNumber}
                                   </td>
