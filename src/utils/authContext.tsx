@@ -18,15 +18,16 @@ interface AuthContextType {
   logout: () => void;
   signup: (userData: any) => Promise<boolean>;
   updateUserData: (userData: User) => Promise<void>;
+  reloadUser: () => Promise<void>;
   loading: boolean;
 }
-
 const AuthContext = createContext<AuthContextType>({
   user: null,
   login: () => Promise.resolve(false),
   logout: () => {},
   signup: () => Promise.resolve(false),
   updateUserData: () => Promise.resolve(),
+  reloadUser: () => Promise.resolve(),
   loading: true,
 });
 
@@ -40,8 +41,9 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Always restore user from Firebase Auth on refresh
   useEffect(() => {
-    setLoading(true); // Ensure loading is true at start of auth state check
+    setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -55,11 +57,10 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
               subscriptionLocations: data.subscriptionLocations || [],
               ...data
             } as User;
-          setUser(userData);
-          // Set cookies for user id and role
-          Cookies.set('userId', userData.id, { sameSite: 'lax', secure: true });
-          Cookies.set('isAdmin', userData.isAdmin ? 'true' : 'false', { sameSite: 'lax', secure: true });
-          console.log('Cookies set:', Cookies.get('userId'), Cookies.get('isAdmin'));
+            setUser(userData);
+            // Set cookies for user id and role
+            Cookies.set('userId', userData.id, { sameSite: 'lax', secure: true });
+            Cookies.set('isAdmin', userData.isAdmin ? 'true' : 'false', { sameSite: 'lax', secure: true });
           } else {
             // If user doc does not exist, sign out user for safety
             await signOut(auth);
@@ -85,21 +86,17 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // Signup: create Firebase user, Firestore doc, and set context
   const signup = async (userData: any): Promise<boolean> => {
     try {
-      // Create auth user
       const { user: firebaseUser } = await createUserWithEmailAndPassword(
         auth,
         userData.email,
         userData.password
       );
-
-      // Update profile
       await updateProfile(firebaseUser, {
         displayName: userData.fullName
       });
-
-      // Store additional data in Firestore
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       await setDoc(userDocRef, {
         fullName: userData.fullName,
@@ -113,24 +110,10 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
         isAdmin: false,
         createdAt: new Date().toISOString()
       });
-
-      // Set cookies for user id and role
       Cookies.set('userId', firebaseUser.uid, { sameSite: 'lax', secure: true });
       Cookies.set('isAdmin', 'false', { sameSite: 'lax', secure: true });
-
-      setUser({
-        id: firebaseUser.uid,
-        email: firebaseUser.email!,
-        fullName: userData.fullName,
-        phone: userData.phone,
-        reraNumber: userData.reraNumber,
-        state: userData.state,
-        city: userData.city,
-        location: userData.location,
-        subscriptionLocations: userData.subscriptionLocations || [],
-        isAdmin: false,
-        password: '', // Added missing required password property
-      });
+      // Fetch fresh user data from Firestore
+      await reloadUser();
       return true;
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -139,10 +122,11 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Login: Firebase Auth, Firestore fetch handled by onAuthStateChanged
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // After login, onAuthStateChanged will set user and cookies
+      // onAuthStateChanged will set user and cookies
       return true;
     } catch (error: any) {
       console.error('Login error:', error);
@@ -151,6 +135,7 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Logout: Firebase Auth, clear context and cookies
   const logout = async () => {
     try {
       await signOut(auth);
@@ -163,11 +148,10 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Update user data in Firestore and context
   const updateUserData = async (userData: User) => {
     try {
       if (!userData.id) throw new Error('No authenticated user');
-
-      // Validate subscriptionLocations structure
       if (!Array.isArray(userData.subscriptionLocations)) {
         throw new Error('subscriptionLocations must be an array');
       }
@@ -181,41 +165,33 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
           throw new Error('Invalid subscription location object structure');
         }
       });
-
       const userDocRef = doc(db, 'users', userData.id);
-      console.log("Updating user data in Firestore with subscriptionLocations:", userData.subscriptionLocations);
       await updateDoc(
         userDocRef,
         {
           subscriptionLocations: userData.subscriptionLocations,
           updatedAt: new Date().toISOString(),
-          // Spread other userData fields except subscriptionLocations to avoid overwriting
           ...Object.fromEntries(
             Object.entries(userData).filter(([key]) => key !== 'subscriptionLocations')
           ),
         }
       );
-      console.log("User data updated successfully in Firestore");
-
       await reloadUser();
-
-      toast.success('Profile updated successfully');
-      // Update cookies if role changed
       Cookies.set('isAdmin', userData.isAdmin ? 'true' : 'false');
     } catch (error: any) {
       console.error('Update error:', error);
       toast.error(error.message || 'Failed to update profile. Please try again.');
-       throw error;
+      throw error;
     }
   };
 
+  // Force reload user from Firestore (after subscription change)
   const reloadUser = async () => {
     if (!auth.currentUser) return;
     try {
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        console.log("ReloadUser fetched data from Firestore:", data);
         const freshUserData = {
           id: auth.currentUser.uid,
           email: auth.currentUser.email || '',
@@ -223,25 +199,14 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
           ...data
         } as User;
         setUser(freshUserData);
-        console.log("User data reloaded:", freshUserData);
-      } else {
-        console.warn("User document does not exist during reload");
       }
     } catch (error) {
       console.error("Failed to reload user data:", error);
     }
   };
 
-  const handleSaveSubscription = async () => {
-    if (!user) {
-      toast.error("No authenticated user");
-      return;
-    }
-    // ...rest of your code...
-  };
-
   return (
-    <AuthContext.Provider value={{ user, login, logout, signup, updateUserData, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, signup, updateUserData, reloadUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -30,7 +30,7 @@ const initialLocations: LocationOption[] = [
 
 const Subscription = () => {
   const navigate = useNavigate();
-  const { user, updateUserData, loading } = useAuth();
+  const { user, updateUserData, reloadUser, loading } = useAuth();
   const [locations, setLocations] = useState<LocationOption[]>(initialLocations);
   const [total, setTotal] = useState(0);
   const [upgradeMode, setUpgradeMode] = useState(false);
@@ -338,6 +338,7 @@ const Subscription = () => {
 
               try {
                 await updateUserData({ ...user, subscriptionLocations });
+                await reloadUser(); // Ensures Dashboard sees new subscriptions immediately
                 toast.success("Subscription updated successfully!");
                 setUpgradeMode(false);
 
@@ -363,6 +364,9 @@ const Subscription = () => {
                   };
                 });
                 setLocations(updatedLocations);
+
+                // Await reloadUser completion before navigating
+                await new Promise((resolve) => setTimeout(resolve, 500));
 
                 navigate("/subscription/checkout");
               } catch (error) {

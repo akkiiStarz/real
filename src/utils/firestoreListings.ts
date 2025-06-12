@@ -4,14 +4,14 @@ import { db } from "./firebase";
 export const addResaleProperty = async (userId: string, property: any) => {
   const { status, ...rest } = property; // Remove status if present
   const resaleCollection = collection(db, "users", userId, "resaleProperties");
-  const docRef = await addDoc(resaleCollection, { ...rest, userId });
+  const docRef = await addDoc(resaleCollection, { ...rest, userId, status: status ?? "Pending Approval" });
   return docRef.id;
 };
 
 export const addRentalProperty = async (userId: string, property: any) => {
   const { status, ...rest } = property; // Remove status if present
   const rentalCollection = collection(db, "users", userId, "rentalProperties");
-  const docRef = await addDoc(rentalCollection, { ...rest, userId });
+  const docRef = await addDoc(rentalCollection, { ...rest, userId, status: status ?? "Pending Approval" });
   return docRef.id;
 };
 
@@ -54,6 +54,7 @@ export const updateResaleProperty = async (
   propertyId: string,
   data: Record<string, unknown>
 ) => {
+  // Do not remove status field here, preserve it if present
   const { userListingState, ...rest } = data; // Remove userListingState, keep status if present
   const docRef = doc(db, "users", userId, "resaleProperties", propertyId);
   await updateDoc(docRef, {
@@ -68,7 +69,8 @@ export const updateRentalProperty = async (
   propertyId: string,
   data: Record<string, unknown>
 ) => {
-  const { status, userListingState, ...rest } = data; // Remove status, don't overwrite userListingState
+  // Do not remove status field here, preserve it if present
+  const { userListingState, ...rest } = data; // Remove userListingState, keep status if present
   const docRef = doc(db, "users", userId, "rentalProperties", propertyId);
   await updateDoc(docRef, {
     ...rest,

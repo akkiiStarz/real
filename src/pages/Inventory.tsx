@@ -301,7 +301,13 @@ const Inventory = () => {
                               return (
                                 <tr key={property.id} className="hover:bg-neutral-50">
                                   <td className="px-4 py-4">{format(new Date(property.createdAt), 'dd/MM/yyyy')}</td>
-                                  <td className="px-4 py-4">{property.status}</td>
+                                  <td className="px-4 py-4">
+                                    {property.status === "Approved"
+                                      ? "Approved"
+                                      : property.status === "Rejected"
+                                      ? "Rejected"
+                                      : "Pending Approval"}
+                                  </td>
                                   <td className="px-4 py-4">
                                     {property.status === 'Approved' ? (
                                       <select
@@ -379,6 +385,7 @@ const Inventory = () => {
                             <tr>
                               <th className="px-4 py-3">Date</th>
                               <th className="px-4 py-3">Status</th>
+                              <th className="px-4 py-3">Listing State</th>
                               <th className="px-4 py-3">Type</th>
                               <th className="px-4 py-3">Terrace</th>
                               <th className="px-4 py-3">Zone</th>
@@ -405,7 +412,7 @@ const Inventory = () => {
                               <th className="px-4 py-3">Property ID</th>
                               <th className="px-4 py-3">Contact Name</th>
                               <th className="px-4 py-3">Contact Number</th>
-                              <th className="px-4 py-3">Contact</th>
+                              {/* <th className="px-4 py-3">Contact</th> */}
                               <th className="px-4 py-3">Edit</th>
                             </tr>
                           </thead>
@@ -413,7 +420,40 @@ const Inventory = () => {
                             {inventory.rental.map((property: any) => (
                               <tr key={property.id} className="hover:bg-neutral-50">
                                 <td className="px-4 py-4">{format(new Date(property.createdAt), 'dd/MM/yyyy')}</td>
-                                <td className="px-4 py-4">{property.status}</td>
+                                <td className="px-4 py-4">
+                                  {property.status === "Approved"
+                                    ? "Approved"
+                                    : property.status === "Rejected"
+                                    ? "Rejected"
+                                    : "Pending Approval"}
+                                </td>
+                                <td className="px-4 py-4">
+                                  {property.status === 'Approved' ? (
+                                    <select
+                                      value={property.listingState || "Available"}
+                                      onChange={async (e) => {
+                                        const newState = e.target.value;
+                                        // Store in Firestore as 'listingState'
+                                        await updateRentalProperty(user.id, property.id, { listingState: newState });
+                                        setInventory((prev) => ({
+                                          ...prev,
+                                          rental: prev.rental.map((p) =>
+                                            p.id === property.id
+                                              ? { ...p, listingState: newState }
+                                              : p
+                                          ),
+                                        }));
+                                      }}
+                                      className="border rounded px-2 py-1 text-sm bg-white"
+                                    >
+                                      <option value="Available">Available</option>
+                                      <option value="Sold Out">Sold Out</option>
+                                      <option value="Hold">Hold</option>
+                                    </select>
+                                  ) : (
+                                    <span>Pending Approval</span>
+                                  )}
+                                </td>
                                 <td className="px-4 py-4">{property.type}</td>
                                 <td className="px-4 py-4">{property.terrace ? 'Yes' : 'No'}</td>
                                 <td className="px-4 py-4">{property.zone}</td>
@@ -440,7 +480,7 @@ const Inventory = () => {
                                 <td className="px-4 py-4">{property.propertyId}</td>
                                 <td className="px-4 py-4">{property.contactName}</td>
                                 <td className="px-4 py-4">{property.contactNumber}</td>
-                                <td className="px-4 py-4">{property.contact}</td>
+                                {/* <td className="px-4 py-4">{property.contact}</td> */}
                                 <td className="px-4 py-4">
                                   <Button
                                     size="sm"

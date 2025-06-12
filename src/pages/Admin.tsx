@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect} from "react";
 import { format } from "date-fns";
 import { Check, X, Users, Briefcase, Eye, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -31,7 +31,6 @@ const Admin = () => {
       try {
         setLoading(true);
         const allUsers = await getUsers();
-        console.log("Admin fetched users count:", allUsers.length);
         const mappedUsers: User[] = allUsers.map((user: any) => ({
           id: user.id,
           fullName: user.fullName,
@@ -52,14 +51,10 @@ const Admin = () => {
 
         for (const user of mappedUsers) {
           const resaleProps = await getResaleProperties(user.id);
-          console.log(`User ${user.id} resale properties count:`, resaleProps.length);
           const rentalProps = await getRentalProperties(user.id);
-          console.log(`User ${user.id} rental properties count:`, rentalProps.length);
           allResale.push(...resaleProps);
           allRental.push(...rentalProps);
         }
-        console.log("Admin fetched total resale properties:", allResale.length);
-        console.log("Admin fetched total rental properties:", allRental.length);
 
         setInventory({ resale: allResale, rental: allRental });
       } catch (error) {
@@ -73,50 +68,50 @@ const Admin = () => {
     fetchData();
   }, [user]);
 
+  // Only show properties with status "Pending Approval" or missing
+  const visibleProperties = {
+    resale: inventory.resale.filter((p: any) =>
+      !p.status || p.status === "Pending Approval"
+    ),
+    rental: inventory.rental.filter((p: any) =>
+      !p.status || p.status === "Pending Approval"
+    ),
+  };
+
   const handleApproveProperty = async (
     id: string,
     category: "resale" | "rental"
   ) => {
     try {
-      console.log(`Starting approval for property id: ${id}, category: ${category}`);
       setActionLoading(true);
       const property = inventory[category].find((p: any) => p.id === id);
       if (!property) {
-        console.error("Property not found for approval");
         toast.error("Property not found");
         setActionLoading(false);
         return;
       }
-      // Check admin role before approving
       if (!user?.isAdmin) {
-        console.error("User does not have permission to approve properties");
         toast.error("You do not have permission to approve properties.");
         setActionLoading(false);
         return;
       }
       await updatePropertyStatus(property.userId, category, id, "Approved", true);
-      console.log(`Backend updated for property id: ${id}`);
 
+      // Update UI: remove from pending, add to approved
       setInventory((prevInventory) => {
-        const updatedProperties = (prevInventory[category] || []).map(
-          (property: any) => {
-            if (property.id === id) {
-              console.log(`Updating UI state for property id: ${id}`);
-              return { ...property, status: "Approved", isApproved: true };
-            }
-            return property;
-          }
+        const updatedCategory = prevInventory[category].map((p: any) =>
+          p.id === id
+            ? { ...p, status: "Approved", isApproved: true }
+            : p
         );
         return {
           ...prevInventory,
-          [category]: updatedProperties,
+          [category]: updatedCategory,
         };
       });
 
       toast.success("Property approved successfully");
-      console.log(`Approval process completed for property id: ${id}`);
     } catch (error) {
-      console.error("Error approving property:", error);
       toast.error("Failed to approve property");
     } finally {
       setActionLoading(false);
@@ -206,7 +201,7 @@ const Admin = () => {
                             <h4 className="font-medium text-neutral-700 mb-2">
                               Resale Properties
                             </h4>
-                            {inventory.resale.filter(p => p.status === "Pending Approval").length === 0 ? (
+                            {visibleProperties.resale.length === 0 ? (
                               <p className="text-neutral-500 italic mb-6">
                                 No resale properties
                               </p>
@@ -236,7 +231,7 @@ const Admin = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.resale.filter(p => p.status === "Pending Approval").map((property: any, index: number) => (
+                                    {visibleProperties.resale.map((property: any, index: number) => (
                                       <tr
                                         key={property.id + '-' + index}
                                         className="hover:bg-neutral-50"
@@ -310,13 +305,13 @@ const Admin = () => {
                                   </tbody>
                                 </table>
                               </div>
-                            )}
+                            )} 
 
                             {/* Rental Properties */}
                             <h4 className="font-medium text-neutral-700 mb-2">
                               Rental Properties
                             </h4>
-                            {inventory.rental.length === 0 ? (
+                            {visibleProperties.rental.length === 0 ? (
                               <p className="text-neutral-500 italic">
                                 No rental properties
                               </p>
@@ -346,7 +341,7 @@ const Admin = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-neutral-200">
-                                    {inventory.rental.map((property: any, index: number) => (
+                                    {visibleProperties.rental.map((property: any, index: number) => (
                                       <tr
                                         key={property.id + '-' + index}
                                         className="hover:bg-neutral-50"
@@ -418,7 +413,7 @@ const Admin = () => {
                                   </tbody>
                                 </table>
                               </div>
-                            )}
+                            )} 
                           </div>
                         ),
                       },
@@ -1342,8 +1337,8 @@ const Admin = () => {
                       variant="danger"
                       className="mr-2"
                       icon={<X className="h-4 w-4 mr-1" />}
-                      onClick={() => {
-                        handleRejectProperty(
+                      onClick={async () => {
+                        await handleRejectProperty(
                           showPropertyDetails.id,
                           showPropertyDetails.category
                         );
@@ -1355,8 +1350,8 @@ const Admin = () => {
                     <Button
                       variant="primary"
                       icon={<Check className="h-4 w-4 mr-1" />}
-                      onClick={() => {
-                        handleApproveProperty(
+                      onClick={async () => {
+                        await handleApproveProperty(
                           showPropertyDetails.id,
                           showPropertyDetails.category
                         );
@@ -1371,8 +1366,8 @@ const Admin = () => {
                   <Button
                     variant="primary"
                     icon={<Check className="h-4 w-4 mr-1" />}
-                    onClick={() => {
-                      handleApproveProperty(
+                    onClick={async () => {
+                      await handleApproveProperty(
                         showPropertyDetails.id,
                         showPropertyDetails.category
                       );

@@ -4,7 +4,6 @@ import { Building, User, Phone, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api';
-// Marker usage replaced with AdvancedMarkerElement workaround or comment due to deprecation warning
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -77,7 +76,6 @@ const Signup = () => {
   const handleStateChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const stateCode = e.target.value;
     setSelectedStateCode(stateCode);
-    
     if (stateCode) {
       try {
         const citiesData = await fetchCities(stateCode);
@@ -92,15 +90,15 @@ const Signup = () => {
     }
   };
 
-const handleMapClick = (e: google.maps.MapMouseEvent) => {
-  if (e.latLng) {
-    const newPos = {
-      lat: e.latLng.lat(),
-      lng: e.latLng.lng(),
-    };
-    setMarkerPosition(newPos);
-  }
-};
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const newPos = {
+        lat: e.latLng.lat(),
+        lng: e.latLng.lng(),
+      };
+      setMarkerPosition(newPos);
+    }
+  };
 
   const nextStep = async () => {
     const isValid = await trigger();
@@ -139,10 +137,9 @@ const handleMapClick = (e: google.maps.MapMouseEvent) => {
       
       if (success) {
         toast.success('Account created successfully!');
-        if (!userData.subscriptionLocations || userData.subscriptionLocations.length === 0) {
-          navigate('/subscription');
-          return null;
-        }
+        // Always redirect to subscription page after signup
+        navigate('/subscription');
+        return;
       } else {
         toast.error('Email already exists');
       }
@@ -288,7 +285,6 @@ const handleMapClick = (e: google.maps.MapMouseEvent) => {
                     required: 'Please confirm your password',
                     validate: value => value === password || "Passwords do not match"
                   })}
-                  // Removed lock icon as per user request
                 />
                   <button
                     type="button"

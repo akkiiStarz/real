@@ -15,7 +15,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import Tabs from "../components/ui/Tabs";
-import { Tooltip } from "react-tooltip";
+// Removed unused import Tooltip from react-tooltip
 import {
   fetchStationsByCity,
   fetchLocalitiesByCity,
@@ -24,6 +24,7 @@ import {
 import {
   getUsers,
   getResaleProperties,
+  getRentalProperties,
 } from "../utils/firestoreListings";
 import { generateWhatsAppText } from "../utils/helper";
 import { PropertyCategory } from "../types";
@@ -83,6 +84,13 @@ const Dashboard = () => {
     resale: [],
     rental: [],
   });
+
+  // Automatically switch propertyCategory to Rental if no resale properties but rental properties exist
+  useEffect(() => {
+    if (inventory.resale.length === 0 && inventory.rental.length > 0) {
+      setPropertyCategory("Rental");
+    }
+  }, [inventory]);
   const [filteredProperties, setFilteredProperties] = useState<ResaleProperty[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<ResaleProperty[]>([]);
   const [hasFiltered, setHasFiltered] = useState(false);
@@ -104,38 +112,52 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
 
+  const fetchData = async () => {
+    if (!user) return;
+    const subscriptionLocs = (user.subscriptionLocations || [])
+      .map(loc => loc.name.trim().toLowerCase())
+      .filter(Boolean);
+
+    try {
+      const allUsers = await getUsers();
+      let allResale: ResaleProperty[] = [];
+      let allRental: ResaleProperty[] = [];
+      for (const u of allUsers) {
+        const resale: ResaleProperty[] = await getResaleProperties(u.id);
+        allResale = allResale.concat(resale);
+        // Assuming a similar function getRentalProperties exists
+        if (typeof getRentalProperties === "function") {
+          const rental: ResaleProperty[] = await getRentalProperties(u.id);
+          allRental = allRental.concat(rental);
+        }
+      }
+
+      const matchingResale: ResaleProperty[] = allResale.filter(
+        (p: ResaleProperty) =>
+          p.status === "Approved" &&
+          subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
+      );
+
+      const matchingRental: ResaleProperty[] = allRental.filter(
+        (p: ResaleProperty) =>
+          p.status === "Approved" &&
+          subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
+      );
+
+      console.log("Fetched resale properties:", matchingResale);
+      console.log("Fetched rental properties:", matchingRental);
+
+      setInventory({ resale: matchingResale, rental: matchingRental });
+      setFilteredProperties([]); // Don't show any listings by default
+      setHasFiltered(false);     // User must apply filters to see listings
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        const subscriptionLocs = (user.subscriptionLocations || [])
-          .map(loc => loc.name.trim().toLowerCase())
-          .filter(Boolean);
-
-        const allUsers = await getUsers();
-        let allResale: ResaleProperty[] = [];
-        for (const u of allUsers) {
-          const resale: ResaleProperty[] = await getResaleProperties(u.id);
-          allResale = allResale.concat(resale);
-        }
-
-        const matchingResale: ResaleProperty[] = allResale.filter(
-          (p: ResaleProperty) =>
-            p.status === "Approved" &&
-            subscriptionLocs.includes((p.roadLocation || "").trim().toLowerCase())
-        );
-
-        if (isMounted) {
-          setInventory({ resale: matchingResale, rental: [] });
-          setFilteredProperties([]); // Don't show any listings by default
-          setHasFiltered(false);     // User must apply filters to see listings
-        }
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      }
-    };
 
     const loadBanners = async () => {
       try {
@@ -153,10 +175,18 @@ const Dashboard = () => {
     fetchData();
     loadBanners();
 
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 60000); // Refresh every 60 seconds
+
     return () => {
       isMounted = false;
+      clearInterval(intervalId);
     };
   }, [user]);
+
+  // (Remove everything from this first return statement up to the next return statement.)
+  // The correct code starts from the second return statement below.
 
   const handleFilterChange = (name: string, value: string | number | boolean | undefined) => {
     setFilters((prev) => ({
@@ -251,17 +281,16 @@ const Dashboard = () => {
     setHasFiltered(true);
   };
 
-  // Disabled automatic filtering on inventory or subscription change to hide listings until user applies filters
-  // useEffect(() => {
-  //   if (!user) return;
-  //   if ((user.subscriptionLocations || []).length === 0 && !user.isAdmin) {
-  //     setFilteredProperties([]);
-  //     setHasFiltered(false);
-  //     return;
-  //   }
-  //   applyFilters(false);
-  //   // eslint-disable-next-line
-  // }, [user?.subscriptionLocations, propertyCategory, inventory]);
+  useEffect(() => {
+    if (!user) return;
+    if ((user.subscriptionLocations || []).length === 0 && !user.isAdmin) {
+      setFilteredProperties([]);
+      setHasFiltered(false);
+      return;
+    }
+    applyFilters(false);
+    // eslint-disable-next-line
+  }, [user?.subscriptionLocations, propertyCategory, inventory]);
 
   const resetFilters = () => {
     setFilters({
