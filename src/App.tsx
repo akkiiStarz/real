@@ -35,6 +35,15 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <Loading />;
   }
 
+  // Allow access to /subscription if just signed up
+  if (
+    !user &&
+    localStorage.getItem('justSignedUp') === 'true' &&
+    location.pathname === '/subscription'
+  ) {
+    return children;
+  }
+
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -81,7 +90,7 @@ const SignupRoute = () => {
 };
 
 function App() {
-  const { loading } = useAuth(); // use loading state
+  const { loading } = useAuth();
   const location = useLocation();
 
   // Scroll to top on route change
@@ -91,7 +100,7 @@ function App() {
 
   // Wait for auth state to resolve before rendering routes
   if (loading) {
-    return <div>Loading...</div>; // Or your custom loading spinner
+    return <div>Loading...</div>;
   }
 
   return (

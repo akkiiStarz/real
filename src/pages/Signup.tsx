@@ -137,7 +137,7 @@ const Signup = () => {
       
       if (success) {
         toast.success('Account created successfully!');
-        // Always redirect to subscription page after signup
+        localStorage.setItem('justSignedUp', 'true');
         navigate('/subscription');
         return;
       } else {

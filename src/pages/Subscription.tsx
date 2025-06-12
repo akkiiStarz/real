@@ -100,13 +100,26 @@ const Subscription = () => {
     fetchAllSubscribedLocations();
   }, []);
 
+  // Remove justSignedUp flag only after user is loaded
+  useEffect(() => {
+    if (user) {
+      localStorage.removeItem('justSignedUp');
+    }
+  }, [user]);
+
+  // Redirect to login if not authenticated, but only after loading
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+    }
+  }, [loading, user, navigate]);
+
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (!loading && !user) {
-    navigate("/login");
-    return null;
+  if (!user) {
+    return null; // Don't render anything while redirecting
   }
 
   const toggleLocation = (id: string) => {
@@ -131,8 +144,6 @@ const Subscription = () => {
     return locations.some((loc) => loc.id === id && loc.isSelected);
   };
 
-
-
   const handleSkip = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
@@ -148,7 +159,6 @@ const Subscription = () => {
       console.error(error);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-neutral-50 py-12 px-4">
@@ -177,8 +187,7 @@ const Subscription = () => {
                     : "hover:shadow-md rounded-lg"
                 } ${disabled ? "opacity-60 pointer-events-none" : ""} ${locked ? "opacity-80" : ""}`}
                 onClick={() => {
-                  if (disabled) return; // Never allow toggling disabled (active subscription)
-                  // Always allow toggling locked locations (for upgrade)
+                  if (disabled) return;
                   toggleLocation(location.id);
                 }}
                 title={
@@ -207,14 +216,11 @@ const Subscription = () => {
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {/* Locked icon */}
                       {locked && (
                         <span className="w-6 h-6 flex items-center justify-center bg-neutral-300 rounded-full">
                           <Lock className="h-4 w-4 text-neutral-600" />
                         </span>
                       )}
-
-                      {/* Select/Check icon */}
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${
                           disabled
@@ -327,8 +333,8 @@ const Subscription = () => {
                   subscribedAt: new Date().toISOString(),
                 }));
               const subscriptionLocations = [
-                ...prevSubs.filter((sub) => isLocationDisabled(sub)), // keep disabled (active) subs
-                ...newSubs, // add new
+                ...prevSubs.filter((sub) => isLocationDisabled(sub)),
+                ...newSubs,
               ];
 
               if (subscriptionLocations.length === 0) {
@@ -338,7 +344,7 @@ const Subscription = () => {
 
               try {
                 await updateUserData({ ...user, subscriptionLocations });
-                await reloadUser(); // Ensures Dashboard sees new subscriptions immediately
+                await reloadUser();
                 toast.success("Subscription updated successfully!");
                 setUpgradeMode(false);
 
@@ -353,19 +359,15 @@ const Subscription = () => {
                   if (sub && sub.subscribedAt) {
                     const subscribedDate = new Date(sub.subscribedAt);
                     const diff = now.getTime() - subscribedDate.getTime();
-                    // Disable for 1 month (30 days)
                     disabled = diff < 30 * 24 * 60 * 60 * 1000;
                   }
                   return {
                     ...loc,
                     isSelected,
-                    // Optionally, you can add a disabled property if you want to use it in your UI
-                    // disabled,
                   };
                 });
                 setLocations(updatedLocations);
 
-                // Await reloadUser completion before navigating
                 await new Promise((resolve) => setTimeout(resolve, 500));
 
                 navigate("/subscription/checkout");

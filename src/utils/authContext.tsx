@@ -117,7 +117,11 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || 'An error occurred during signup. Please try again.');
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Email already exists. Please use a different email.');
+      } else {
+        toast.error('An error occurred during signup. Please try again.');
+      }
       return false;
     }
   };
@@ -142,6 +146,7 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       Cookies.remove('userId');
       Cookies.remove('isAdmin');
+      localStorage.removeItem('justSignedUp');
     } catch (error: any) {
       console.error('Logout error:', error);
       toast.error(error.message || 'An error occurred during logout. Please try again.');
